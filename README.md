@@ -1,4 +1,4 @@
-# ComfyUI-NodeAlign
+# ComfyUI-AlignLayout
 
 这是一个专为 ComfyUI 设计的生产力增强扩展，旨在通过直观的 **径向菜单 (Radial Menu)** 和 **鼠标甩动手势 (Mouse Flick)**，极大地提升节点对齐、分布以及尺寸调整的效率。
 
