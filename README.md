@@ -30,7 +30,7 @@
 2. 执行克隆命令：
     
     ```
-    git clone https://github.com/pixixai/Comfyui-NodeAlign.git
+    git clone https://github.com/pixixai/ComfyUI-AlignLayout.git
     
     ```
     
@@ -50,7 +50,7 @@
 ## 📁 目录结构
 
 ```
-ComfyUI-Node-Layout-PowerTools/
+ComfyUI-AlignLayout/
 ├── __init__.py          # 插件加载引导
 ├── web/
 │   ├── align_plugin.js   # 对齐面板逻辑
