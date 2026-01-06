@@ -1,0 +1,18 @@
+# 忽略 Python 缓存文件夹
+__pycache__/
+
+# 忽略所有的编译文件
+*.pyc
+*.pyo
+*.pyd
+
+# 忽略敏感配置文件（非常重要！）
+api_key.json
+
+# 忽略本地虚拟环境（如果你有的话）
+venv/
+.env
+
+# 忽略 IDE 配置文件
+.vscode/
+.idea/
