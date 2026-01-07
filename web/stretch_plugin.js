@@ -156,12 +156,17 @@ app.registerExtension({
             if (e.code === "Escape") closePanel();
         });
 
-        window.addEventListener("mousedown", (e) => {
-            if (panel.style.display === "block") {
-                setTimeout(() => {
-                    const selected = Object.values(app.canvas.selected_nodes || {});
-                    if (selected.length < 1) closePanel();
-                }, 20);
+        // --- 核心修复：点击外部关闭 (使用 pointerdown 和全局标志位) ---
+        window.addEventListener("pointerdown", (e) => {
+            // 只有当面板处于激活状态时才处理
+            if (window.__comfy_resizer_active) {
+                // 如果点击的不是本插件的任何按钮 (使用 closest 方法检测)
+                if (!e.target.closest(".comfy-node-resizer-btn")) {
+                    // 强制关闭
+                    closePanel();
+                    // 重置滑动手势状态
+                    isTrackingFlick = false;
+                }
             }
         }, true);
 

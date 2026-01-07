@@ -99,7 +99,6 @@ app.registerExtension({
             const btn = document.createElement("button");
             btn.innerHTML = html;
             btn.className = "comfy-node-align-btn";
-            // 修复：如果是底部按钮使用 static，否则使用 absolute 
             const posType = isStatic ? "static" : "absolute";
             btn.style.cssText = `box-sizing: border-box; position: ${posType}; width: ${w}px; height: ${h}px; border-radius: 999px; border: 1px solid rgba(102, 102, 102, 0.3); background: ${btnBg}; color: white; cursor: pointer; pointer-events: auto; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); display: flex; align-items: center; justify-content: center; padding: 0; transition: transform 0.1s, background 0.2s; flex-shrink: 0;`;
             
@@ -172,12 +171,21 @@ app.registerExtension({
             if (e.code === "Escape") closePanel();
         });
 
-        window.addEventListener("mousedown", (e) => {
-            if (panel.style.display === "block") {
-                setTimeout(() => {
-                    const selected = Object.values(app.canvas.selected_nodes || {});
-                    if (selected.length < 2) closePanel();
-                }, 20);
+        // --- 核心修复：更强力的点击外部关闭逻辑 ---
+        // 1. 使用 pointerdown：覆盖鼠标、触摸屏和手写笔。
+        // 2. 使用 capture=true (捕获阶段)：在 LiteGraph 画布处理事件之前就拦截，
+        //    防止画布因为 preventDefault/stopPropagation 而导致 window 级冒泡监听失效。
+        // 3. 依赖全局标志位：比检测 DOM style 更可靠。
+        window.addEventListener("pointerdown", (e) => {
+            if (window.__comfy_align_active) {
+                // 如果点击的目标不是功能按钮（或其内部图标）
+                if (!e.target.closest(".comfy-node-align-btn")) {
+                    // 强制关闭面板
+                    closePanel();
+                    
+                    // 强制重置手势状态 (确保不残留状态)
+                    isTrackingFlick = false;
+                }
             }
         }, true);
 
