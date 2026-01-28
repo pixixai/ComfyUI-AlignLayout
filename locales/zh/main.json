@@ -1,0 +1,13 @@
+{
+    "settingsCategories": {
+        "AlignLayout": "对齐布局 (AlignLayout)",
+        "NodeAligner": "节点对齐助手",
+        "NodeResizer": "节点拉伸助手",
+        "Auto Layout": "自动布局",
+        "AddNodeMenu": "添加节点菜单",
+        "QuickNodeMenu": "快捷节点菜单/收藏菜单",
+        "Select Same": "选择相同节点",
+        "Replace Node":"替换节点",
+        "FastLink": "快速连线"
+    }
+}

@@ -4,19 +4,39 @@ import { app } from "../../scripts/app.js";
 app.registerExtension({
     name: "Comfy.NodeAligner",
     async setup() {
-        // --- 核心参数与状态 ---
+        // --- 设置 ID 常量 ---
+        const SETTING_IDS = {
+            RADIUS: "NodeAligner.Radius",
+            FLICK_DIST: "NodeAligner.FlickDistance",
+            FLICK_SPEED: "NodeAligner.FlickSpeed",
+            SHORTCUT: "NodeAligner.Shortcut",
+            ENABLED: "NodeAligner.Enabled",
+            // 按钮配置 ID (仅保留环形菜单)
+            BTN_TOP: "NodeAligner.Btn.Top",
+            BTN_BOTTOM: "NodeAligner.Btn.Bottom",
+            BTN_LEFT: "NodeAligner.Btn.Left",
+            BTN_RIGHT: "NodeAligner.Btn.Right",
+            BTN_TOP_LEFT: "NodeAligner.Btn.TopLeft",
+            BTN_TOP_RIGHT: "NodeAligner.Btn.TopRight",
+            BTN_BOTTOM_LEFT: "NodeAligner.Btn.BottomLeft",
+            BTN_BOTTOM_RIGHT: "NodeAligner.Btn.BottomRight",
+            // 默认间距设置
+            GAP_H: "NodeAligner.DefaultGap.H",
+            GAP_V: "NodeAligner.DefaultGap.V"
+        };
+
+        // --- 核心状态 ---
         let lastMousePos = { x: 0, y: 0 };
         let flickStartPos = null;
         let flickStartTime = 0;
         let isTrackingFlick = false;
 
-        const radius = 140; 
+        // 静态常量
         const btnBg = "rgba(34, 34, 34, 0.6)"; 
+        const btnHoverBg = "rgba(68, 68, 68, 0.7)"; 
         const iconScale = 0.7; 
-        const flickDistThreshold = 80;  
-        const flickSpeedThreshold = 0.6; 
 
-        // SVG 图标库 (用户提供的统一版本)
+        // SVG 图标库
         const svgIcons = {
             top: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 17.07 17.07"><rect fill="#c2c2c2" x="9.13" y="5.78" width="3.45" height="5.52" rx=".82"/><rect fill="#c2c2c2" x="4.66" y="5.78" width="3.45" height="8.28" rx=".82"/><line stroke="#c2c2c2" stroke-linecap="round" stroke-width=".69" fill="none" x1="3.36" y1="4.48" x2="13.71" y2="4.48"/><circle fill="none" stroke="none" cx="8.54" cy="8.54" r="8.54"/></svg>`,
             bottom: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 17.07 17.07"><rect fill="#c2c2c2" x="9.13" y="5.95" width="3.45" height="5.52" rx=".82"/><rect fill="#c2c2c2" x="4.66" y="3.19" width="3.45" height="8.28" rx=".82"/><line stroke="#c2c2c2" stroke-linecap="round" stroke-width=".69" fill="none" x1="3.36" y1="12.76" x2="13.71" y2="12.76"/><circle fill="none" stroke="none" cx="8.54" cy="8.54" r="8.54"/></svg>`,
@@ -26,24 +46,30 @@ app.registerExtension({
             h_center: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 11 11"><rect fill="#c2c2c2" x="4.47" y="1.48" width="2.07" height="4.6" rx=".58" transform="translate(1.72 9.28) rotate(-90)"/><rect fill="#c2c2c2" x="2.05" y="5.77" width="6.9" height="2.48" rx=".64"/><line stroke="#c2c2c2" stroke-linecap="round" stroke-width=".52" x1="5.5" y1="9.64" x2="5.5" y2="1.36"/><circle fill="none" stroke="none" cx="5.5" cy="5.5" r="5.5"/></svg>`,
             dist_h_gap: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 11 11"><rect fill="#c2c2c2" x="4.36" y="2.77" width="2.28" height="5.47" rx=".54"/><line stroke="#c2c2c2" stroke-linecap="round" stroke-width=".69" x1="8.92" y1="2.02" x2="8.92" y2="8.98"/><line stroke="#c2c2c2" stroke-linecap="round" stroke-width=".69" x1="2.08" y1="2.02" x2="2.08" y2="8.98"/><circle fill="none" stroke="none" cx="5.5" cy="5.5" r="5.5"/></svg>`,
             dist_v_gap: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 11 11"><rect fill="#c2c2c2" x="2.77" y="4.36" width="5.47" height="2.28" rx=".54"/><line stroke="#c2c2c2" stroke-linecap="round" stroke-width=".69" x1="2.02" y1="2.08" x2="8.98" y2="2.08"/><line stroke="#c2c2c2" stroke-linecap="round" stroke-width=".69" x1="2.02" y1="8.92" x2="8.92" y2="8.92"/><circle fill="none" stroke="none" cx="5.5" cy="5.5" r="5.5"/></svg>`,
-            dist_v_t: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 11 11"><rect fill="#c2c2c2" x="3.1" y="3.37" width="4.79" height="1.81" rx=".46"/><line stroke="#c2c2c2" stroke-linecap="round" stroke-width=".3" x1="8.55" y1="2.77" x2="2.45" y2="2.77"/><rect fill="#c2c2c2" x="3.1" y="6.89" width="4.79" height="1.66" rx=".44"/><line stroke="#c2c2c2" stroke-linecap="round" stroke-width=".3" x1="8.55" y1="6.3" x2="2.45" y2="6.3"/><circle fill="none" stroke="none" cx="5.5" cy="5.5" r="5.5"/></svg>`,
-            dist_v_m: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 11 11"><rect fill="#c2c2c2" x="2.77" y="2.95" width="5.47" height="2.07" rx=".52"/><line stroke="#c2c2c2" stroke-linecap="round" stroke-width=".34" x1="8.98" y1="3.99" x2="2.02" y2="3.99"/><rect fill="#c2c2c2" x="2.77" y="6.28" width="5.47" height="1.9" rx=".5"/><line stroke="#c2c2c2" stroke-linecap="round" stroke-width=".34" x1="8.98" y1="7.23" x2="2.02" y2="7.23"/><circle fill="none" stroke="none" cx="5.5" cy="5.5" r="5.5"/></svg>`,
-            dist_v_b: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 11 11"><rect fill="#c2c2c2" x="3.02" y="5.99" width="4.95" height="1.87" rx=".47"/><line stroke="#c2c2c2" stroke-linecap="round" stroke-width=".31" x1="8.65" y1="8.49" x2="2.35" y2="8.49"/><rect fill="#c2c2c2" x="3.02" y="2.51" width="4.95" height="1.72" rx=".45"/><line stroke="#c2c2c2" stroke-linecap="round" stroke-width=".31" x1="8.65" y1="4.84" x2="2.35" y2="4.84"/><circle fill="none" stroke="none" cx="5.5" cy="5.5" r="5.5"/></svg>`,
-            dist_h_l: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 11 11"><rect fill="#c2c2c2" x="3.29" y="3.08" width="1.83" height="4.84" rx=".46"/><line stroke="#c2c2c2" stroke-linecap="round" stroke-width=".31" x1="2.68" y1="2.42" x2="2.68" y2="8.58"/><rect fill="#c2c2c2" x="6.84" y="3.08" width="1.68" height="4.84" rx=".44"/><line stroke="#c2c2c2" stroke-linecap="round" stroke-width=".31" x1="6.25" y1="2.42" x2="6.25" y2="8.58"/><circle fill="none" stroke="none" cx="5.5" cy="5.5" r="5.5"/></svg>`,
-            dist_h_c: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 11 11"><rect fill="#c2c2c2" x="2.89" y="2.77" width="2.07" height="5.47" rx=".52"/><line stroke="#c2c2c2" stroke-linecap="round" stroke-width=".34" x1="3.92" y1="2.02" x2="3.92" y2="8.98"/><rect fill="#c2c2c2" x="6.22" y="2.77" width="1.9" height="5.47" rx=".5"/><line stroke="#c2c2c2" stroke-linecap="round" stroke-width=".34" x1="7.16" y1="2.02" x2="7.16" y2="8.98"/><circle fill="none" stroke="none" cx="5.5" cy="5.5" r="5.5"/></svg>`,
-            dist_h_r: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 11 11"><rect fill="#c2c2c2" x="5.88" y="3.02" width="1.88" height="4.96" rx=".47"/><line stroke="#c2c2c2" stroke-linecap="round" stroke-width=".31" x1="8.37" y1="2.35" x2="8.37" y2="8.65"/><rect fill="#c2c2c2" x="2.39" y="3.02" width="1.72" height="4.96" rx=".45"/><line stroke="#c2c2c2" stroke-linecap="round" stroke-width=".31" x1="4.72" y1="2.35" x2="4.72" y2="8.65"/><circle fill="none" stroke="none" cx="5.5" cy="5.5" r="5.5"/></svg>`
+            spacing_v: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 11 11"><rect fill="#c2c2c2" x="3.08" y="3.46" width="4.84" height="1.83" rx=".46" ry=".46"/><line stroke="#c2c2c2" stroke-linecap="round" stroke-width=".31" x1="8.58" y1="2.68" x2="2.42" y2="2.68"/><rect fill="#c2c2c2" x="3.08" y="6.07" width="4.84" height="1.68" rx=".44" ry=".44"/><line stroke="#c2c2c2" stroke-linecap="round" stroke-width=".31" x1="8.58" y1="8.52" x2="2.42" y2="8.52"/><circle fill="none" stroke="none" cx="5.5" cy="5.5" r="5.5"/></svg>`,
+            spacing_h: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 11 11"><rect fill="#c2c2c2" x="3.46" y="3.08" width="1.83" height="4.84" rx=".46" ry=".46"/><line stroke="#c2c2c2" stroke-linecap="round" stroke-width=".31" x1="2.68" y1="2.42" x2="2.68" y2="8.58"/><rect fill="#c2c2c2" x="6.07" y="3.08" width="1.68" height="4.84" rx=".44" ry=".44"/><line stroke="#c2c2c2" stroke-linecap="round" stroke-width=".31" x1="8.52" y1="2.42" x2="8.52" y2="8.58"/><circle fill="none" stroke="none" cx="5.5" cy="5.5" r="5.5"/></svg>`,
+            auto_layout: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 11 11"><circle fill="none" stroke="none" cx="5.5" cy="5.5" r="5.5"/><line stroke="#c2c2c2" stroke-linecap="round" stroke-width=".31" x1="5.5" y1="3.71" x2="5.5" y2="5.23"/><rect fill="#c2c2c2" x="4.5" y="2.26" width="2" height="2" rx=".31" ry=".31"/><path fill="none" stroke="#c2c2c2" stroke-linecap="round" stroke-width=".28" d="M3.5,6.92v-1.35c0-.17.14-.3.3-.3h3.39c.17,0,.3.14.3.3v1.35"/><rect fill="#c2c2c2" x="2.5" y="6.26" width="2" height="2" rx=".31" ry=".31"/><rect fill="#c2c2c2" x="6.5" y="6.26" width="2" height="2" rx=".31" ry=".31"/></svg>`
         };
 
-        const ringActions = [
-            { icon: svgIcons.right, cmd: "right", angle: 0 },
-            { icon: svgIcons.dist_h_gap, cmd: "dist_h_gap", angle: 45 },
-            { icon: svgIcons.bottom, cmd: "bottom", angle: 90 },
-            { icon: svgIcons.dist_v_gap, cmd: "dist_v_gap", angle: 135 },
-            { icon: svgIcons.left, cmd: "left", angle: 180 },
-            { icon: svgIcons.h_center, cmd: "h_center", angle: 225 },
-            { icon: svgIcons.top, cmd: "top", angle: 270 },
-            { icon: svgIcons.v_center, cmd: "v_center", angle: 315 },
-        ];
+        // 命令到图标 Key 的映射
+        const cmdToIconKey = {
+            "top": "top",
+            "bottom": "bottom",
+            "left": "left",
+            "right": "right",
+            "v_center": "v_center",
+            "h_center": "h_center",
+            "dist_v_gap": "dist_v_gap",
+            "dist_h_gap": "dist_h_gap",
+            "spacing_dist_v": "spacing_v",
+            "spacing_dist_h": "spacing_h",
+            "auto_layout": "auto_layout"
+        };
+
+        const getIconHtml = (cmd) => {
+            const key = cmdToIconKey[cmd] || cmd;
+            return svgIcons[key] || "";
+        };
 
         // --- 初始化 UI ---
         const panel = document.createElement("div");
@@ -64,34 +90,168 @@ app.registerExtension({
         ringContainer.appendChild(centralIndicator);
         ringContainer.appendChild(pointerWrapper);
 
-        ringActions.forEach(action => {
-            const isSpecial = ["top", "bottom", "left", "right"].includes(action.cmd);
-            const w = isSpecial ? 63 : 54;
-            const h = isSpecial ? 42 : 36;
-            const btn = createPillButton(action.icon, w, h, false); // false = absolute
-            const rad = (action.angle * Math.PI) / 180;
-            btn.style.left = `${250 + radius * Math.cos(rad) - (w / 2)}px`;
-            btn.style.top = `${200 + radius * Math.sin(rad) - (h / 2)}px`;
-            btn.onclick = (e) => { e.stopPropagation(); alignNodes(action.cmd); };
-            ringContainer.appendChild(btn);
-        });
+        // 动态构建环形菜单配置
+        let ringActions = [];
 
-        const bottomRow = document.createElement("div");
-        bottomRow.style.cssText = "position:absolute; bottom:120px; left:0; width:100%; display:flex; justify-content:center; align-items:center; gap:45px;";
-        panel.appendChild(bottomRow);
+        const updateRingButtons = () => {
+            // 从设置中读取最新配置
+            const s = app.ui.settings;
+            ringActions = [
+                { icon: getIconHtml(s.getSettingValue(SETTING_IDS.BTN_RIGHT, "right")), cmd: s.getSettingValue(SETTING_IDS.BTN_RIGHT, "right"), angle: 0 },
+                { icon: getIconHtml(s.getSettingValue(SETTING_IDS.BTN_BOTTOM_RIGHT, "dist_h_gap")), cmd: s.getSettingValue(SETTING_IDS.BTN_BOTTOM_RIGHT, "dist_h_gap"), angle: 45 },
+                { icon: getIconHtml(s.getSettingValue(SETTING_IDS.BTN_BOTTOM, "bottom")), cmd: s.getSettingValue(SETTING_IDS.BTN_BOTTOM, "bottom"), angle: 90 },
+                { icon: getIconHtml(s.getSettingValue(SETTING_IDS.BTN_BOTTOM_LEFT, "dist_v_gap")), cmd: s.getSettingValue(SETTING_IDS.BTN_BOTTOM_LEFT, "dist_v_gap"), angle: 135 },
+                { icon: getIconHtml(s.getSettingValue(SETTING_IDS.BTN_LEFT, "left")), cmd: s.getSettingValue(SETTING_IDS.BTN_LEFT, "left"), angle: 180 },
+                { icon: getIconHtml(s.getSettingValue(SETTING_IDS.BTN_TOP_LEFT, "h_center")), cmd: s.getSettingValue(SETTING_IDS.BTN_TOP_LEFT, "h_center"), angle: 225 },
+                { icon: getIconHtml(s.getSettingValue(SETTING_IDS.BTN_TOP, "top")), cmd: s.getSettingValue(SETTING_IDS.BTN_TOP, "top"), angle: 270 },
+                { icon: getIconHtml(s.getSettingValue(SETTING_IDS.BTN_TOP_RIGHT, "v_center")), cmd: s.getSettingValue(SETTING_IDS.BTN_TOP_RIGHT, "v_center"), angle: 315 },
+            ];
 
-        const buildGroup = (actions) => {
-            const g = document.createElement("div"); g.style.display = "flex"; g.style.gap = "12px";
-            actions.forEach(a => {
-                const btn = createPillButton(a.icon, 54, 36, true); // true = static
-                btn.onclick = (e) => { e.stopPropagation(); alignNodes(a.cmd); };
-                g.appendChild(btn);
+            while (ringContainer.querySelectorAll('.comfy-node-align-btn').length > 0) {
+                ringContainer.querySelector('.comfy-node-align-btn').remove();
+            }
+
+            const currentRadius = app.ui.settings.getSettingValue(SETTING_IDS.RADIUS, 140);
+
+            ringActions.forEach(action => {
+                const isSpecial = ["top", "bottom", "left", "right"].includes(action.cmd);
+                const w = isSpecial ? 63 : 54;
+                const h = isSpecial ? 42 : 36;
+                const btn = createPillButton(action.icon, w, h, false);
+                const rad = (action.angle * Math.PI) / 180;
+                btn.style.left = `${250 + currentRadius * Math.cos(rad) - (w / 2)}px`;
+                btn.style.top = `${200 + currentRadius * Math.sin(rad) - (h / 2)}px`;
+                btn.onclick = (e) => { e.stopPropagation(); alignNodes(action.cmd); };
+                ringContainer.appendChild(btn);
             });
-            return g;
         };
 
-        bottomRow.appendChild(buildGroup([{ icon: svgIcons.dist_h_l, cmd: "dist_h_l" }, { icon: svgIcons.dist_h_c, cmd: "dist_h_c" }, { icon: svgIcons.dist_h_r, cmd: "dist_h_r" }]));
-        bottomRow.appendChild(buildGroup([{ icon: svgIcons.dist_v_t, cmd: "dist_v_t" }, { icon: svgIcons.dist_v_m, cmd: "dist_v_m" }, { icon: svgIcons.dist_v_b, cmd: "dist_v_b" }]));
+        // --- 底部控制栏 ---
+        const bottomRow = document.createElement("div");
+        bottomRow.style.cssText = "position:absolute; bottom:160px; left:0; width:100%; display:flex; justify-content:center; align-items:center; gap:40px;";
+        panel.appendChild(bottomRow);
+
+        // 创建胶囊型控制组 (左数值 - 右图标)
+        const createCapsuleGroup = (cmd, tooltip, defaultValue) => {
+            const iconHtml = getIconHtml(cmd);
+            const container = document.createElement("div");
+            container.style.cssText = `
+                display: flex; 
+                align-items: center; 
+                gap: 2px; 
+                background: ${btnBg}; 
+                border: 1px solid rgba(102, 102, 102, 0.3);
+                border-radius: 999px; 
+                padding: 4px 8px; 
+                pointer-events: auto;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            `;
+            
+            const input = document.createElement("input");
+            input.type = "number";
+            input.value = defaultValue; // 使用传入的默认值
+            input.style.cssText = `
+                width: 40px; 
+                height: 24px; 
+                background: transparent; 
+                border: none; 
+                color: #666; 
+                text-align: right; 
+                font-size: 13px; 
+                line-height: 24px;
+                padding-top: 2px;
+                outline: none;
+                transition: color 0.2s;
+            `;
+            
+            const highlightInput = () => { input.style.color = "#c2c2c2"; };
+            const dimInput = () => { if(document.activeElement !== input) input.style.color = "#666"; };
+            
+            input.onmouseenter = highlightInput;
+            input.onmouseleave = dimInput;
+            input.onfocus = highlightInput;
+            input.onblur = dimInput;
+            input.onclick = (e) => { e.stopPropagation(); input.focus(); };
+            input.onpointerdown = (e) => e.stopPropagation(); 
+
+            const trigger = () => {
+                let val = parseInt(input.value);
+                if (isNaN(val)) val = 50;
+                alignNodes(cmd, val);
+            };
+            input.onkeydown = (e) => {
+                e.stopPropagation();
+                if (e.key === "Enter") trigger();
+            };
+
+            const btn = document.createElement("div");
+            btn.innerHTML = iconHtml;
+            btn.title = tooltip;
+            btn.style.cssText = `
+                width: 28px; 
+                height: 28px; 
+                cursor: pointer; 
+                display: flex; 
+                align-items: center; 
+                justify-content: center;
+                transition: transform 0.2s, background-color 0.2s, filter 0.2s;
+                border-radius: 50%; 
+            `;
+            const svg = btn.querySelector("svg");
+            if (svg) {
+                svg.style.width = "20px";
+                svg.style.height = "20px";
+                svg.style.display = "block";
+            }
+            
+            btn.onmouseover = () => { 
+                btn.style.transform = "scale(1.15)"; 
+                btn.style.backgroundColor = "rgba(255, 255, 255, 0.1)"; 
+                btn.style.filter = "brightness(1.5)"; 
+                highlightInput(); 
+            };
+            btn.onmouseout = () => { 
+                btn.style.transform = "scale(1.0)"; 
+                btn.style.backgroundColor = "transparent";
+                btn.style.filter = "none";
+                dimInput(); 
+            };
+            btn.onclick = (e) => { e.stopPropagation(); trigger(); };
+
+            container.appendChild(input);
+            container.appendChild(btn);
+            return container;
+        };
+
+        // 动态刷新底部栏 (恢复为固定三个按钮，但读取默认间距设置)
+        const updateBottomRow = () => {
+            bottomRow.innerHTML = ""; // 清空
+            const s = app.ui.settings;
+            
+            // 获取用户设置的默认间距
+            const defGapV = s.getSettingValue(SETTING_IDS.GAP_V, 50);
+            const defGapH = s.getSettingValue(SETTING_IDS.GAP_H, 50);
+
+            // 1. 左侧胶囊 (垂直分布)
+            bottomRow.appendChild(createCapsuleGroup("spacing_dist_v", "Vertical Distribution Spacing (Stack & Center X)", defGapV));
+
+            // 2. 中间按钮 (自动布局)
+            const autoLayoutBtn = createPillButton(getIconHtml("auto_layout"), 36, 36, true);
+            autoLayoutBtn.title = "Auto Layout (Graph)";
+            autoLayoutBtn.onclick = (e) => {
+                e.stopPropagation();
+                if (window.__comfy_auto_layout_instance) {
+                    window.__comfy_auto_layout_instance.arrangeNodes();
+                    closePanel();
+                } else {
+                    console.warn("Auto Layout extension not initialized.");
+                }
+            };
+            bottomRow.appendChild(autoLayoutBtn);
+
+            // 3. 右侧胶囊 (水平分布)
+            bottomRow.appendChild(createCapsuleGroup("spacing_dist_h", "Horizontal Distribution Spacing (Row & Center Y)", defGapH));
+        };
 
         document.body.appendChild(panel);
 
@@ -107,8 +267,13 @@ app.registerExtension({
                 const iconSize = Math.min(w, h) * iconScale;
                 svg.style.width = `${iconSize}px`; svg.style.height = `${iconSize}px`; svg.style.display = "block";
             }
-            btn.onmouseover = () => { btn.style.background = "rgba(68, 68, 68, 0.7)"; btn.style.transform = "scale(1.08)"; };
-            btn.onmouseout = () => { btn.style.background = btnBg; btn.style.transform = "scale(1.0)"; };
+            if (!isStatic) { 
+                btn.onmouseover = () => { btn.style.background = btnHoverBg; btn.style.transform = "scale(1.08)"; };
+                btn.onmouseout = () => { btn.style.background = btnBg; btn.style.transform = "scale(1.0)"; };
+            } else {
+                btn.onmouseover = () => { btn.style.background = btnHoverBg; btn.style.transform = "scale(1.15)"; };
+                btn.onmouseout = () => { btn.style.background = btnBg; btn.style.transform = "scale(1.0)"; };
+            }
             return btn;
         }
 
@@ -121,6 +286,9 @@ app.registerExtension({
         window.__comfy_align_close = closePanel;
 
         window.addEventListener("mousemove", (e) => {
+            const enabled = app.ui.settings.getSettingValue(SETTING_IDS.ENABLED, true);
+            if (!enabled) return;
+
             lastMousePos = { x: e.clientX, y: e.clientY };
             if (panel.style.display === "block" && isTrackingFlick && flickStartPos) {
                 const dx = e.clientX - flickStartPos.x;
@@ -128,10 +296,14 @@ app.registerExtension({
                 const dist = Math.sqrt(dx * dx + dy * dy);
                 const angle = Math.atan2(dy, dx) * 180 / Math.PI;
                 pointerWrapper.style.transform = `rotate(${angle + 90}deg)`;
+                
+                const currentDistThreshold = app.ui.settings.getSettingValue(SETTING_IDS.FLICK_DIST, 80);
+                const currentSpeedThreshold = app.ui.settings.getSettingValue(SETTING_IDS.FLICK_SPEED, 0.6);
+
                 pointerWrapper.style.opacity = dist > 20 ? "1" : "0.3";
-                if (dist > flickDistThreshold) {
+                if (dist > currentDistThreshold) {
                     const timeDelta = Date.now() - flickStartTime;
-                    if (dist / timeDelta > flickSpeedThreshold) {
+                    if (dist / timeDelta > currentSpeedThreshold) {
                         isTrackingFlick = false; 
                         handleFlickGesture((angle + 360) % 360);
                     }
@@ -151,12 +323,42 @@ app.registerExtension({
         }
 
         window.addEventListener("keydown", (e) => {
-            if (e.altKey && e.code === "KeyA") {
+            const enabled = app.ui.settings.getSettingValue(SETTING_IDS.ENABLED, true);
+            if (!enabled) return;
+
+            const shortcutStr = app.ui.settings.getSettingValue(SETTING_IDS.SHORTCUT, "Alt+A");
+            if (!shortcutStr) return;
+
+            const keys = shortcutStr.split('+').map(k => k.trim().toLowerCase());
+            const mainKey = keys.pop(); 
+            
+            const isCtrl = keys.includes('ctrl') || keys.includes('control');
+            const isAlt = keys.includes('alt') || keys.includes('option');
+            const isShift = keys.includes('shift');
+            const isMeta = keys.includes('meta') || keys.includes('cmd') || keys.includes('command');
+            
+            if (e.ctrlKey !== isCtrl) return;
+            if (e.altKey !== isAlt) return;
+            if (e.shiftKey !== isShift) return;
+            if (e.metaKey !== isMeta) return;
+
+            const code = e.code.toLowerCase();
+            const key = e.key.toLowerCase();
+            
+            let match = false;
+            if (key === mainKey) match = true;
+            if (code === mainKey) match = true;
+            if (code === 'key' + mainKey) match = true;
+
+            if (match) {
                 const selected = Object.values(app.canvas.selected_nodes || {});
                 if (selected.length < 2) return;
                 e.preventDefault();
                 
                 if (window.__comfy_resizer_close) window.__comfy_resizer_close();
+
+                updateRingButtons();
+                updateBottomRow(); // 每次打开时更新底部栏
 
                 panel.style.left = (lastMousePos.x - 250) + "px";
                 panel.style.top = (lastMousePos.y - 200) + "px";
@@ -171,25 +373,17 @@ app.registerExtension({
             if (e.code === "Escape") closePanel();
         });
 
-        // --- 核心修复：更强力的点击外部关闭逻辑 ---
-        // 1. 使用 pointerdown：覆盖鼠标、触摸屏和手写笔。
-        // 2. 使用 capture=true (捕获阶段)：在 LiteGraph 画布处理事件之前就拦截，
-        //    防止画布因为 preventDefault/stopPropagation 而导致 window 级冒泡监听失效。
-        // 3. 依赖全局标志位：比检测 DOM style 更可靠。
         window.addEventListener("pointerdown", (e) => {
             if (window.__comfy_align_active) {
-                // 如果点击的目标不是功能按钮（或其内部图标）
-                if (!e.target.closest(".comfy-node-align-btn")) {
-                    // 强制关闭面板
+                if (e.target.tagName === "INPUT") return;
+                if (!e.target.closest(".comfy-node-align-btn") && !e.target.closest("input") && !e.target.closest("div[style*='border-radius: 999px']")) {
                     closePanel();
-                    
-                    // 强制重置手势状态 (确保不残留状态)
                     isTrackingFlick = false;
                 }
             }
         }, true);
 
-        function alignNodes(type) {
+        function alignNodes(type, value = 50) {
             const nodes = Object.values(app.canvas.selected_nodes || {});
             if (nodes.length < 2) return;
             app.canvas.graph.beforeChange();
@@ -208,6 +402,7 @@ app.registerExtension({
                 case "bottom": nodes.forEach(n => n.pos[1] = b.maxY - n.size[1]); break;
                 case "h_center": nodes.forEach(n => n.pos[0] = b.avgCX - n.size[0]/2); break;
                 case "v_center": nodes.forEach(n => n.pos[1] = b.avgCY - n.size[1]/2); break;
+                
                 case "dist_h_gap": {
                     nodes.sort((a,b)=>a.pos[0]-b.pos[0]);
                     const tw = nodes.reduce((acc,n)=>acc+n.size[0], 0);
@@ -222,27 +417,116 @@ app.registerExtension({
                     let y = b.minY; nodes.forEach(n=>{n.pos[1]=y; y+=n.size[1]+gap;});
                     break;
                 }
-                case "dist_h_l": distribute(nodes, 0, false, false); break;
-                case "dist_h_c": distribute(nodes, 0, true, false); break;
-                case "dist_h_r": distribute(nodes, 0, false, true); break;
-                case "dist_v_t": distribute(nodes, 1, false, false); break;
-                case "dist_v_m": distribute(nodes, 1, true, false); break;
-                case "dist_v_b": distribute(nodes, 1, false, true); break;
+
+                case "spacing_dist_v": {
+                    distributeWithSpacing(nodes, 1, value, true);
+                    break;
+                }
+                case "spacing_dist_h": {
+                    distributeWithSpacing(nodes, 0, value, true);
+                    break;
+                }
+                
+                case "auto_layout": {
+                    if (window.__comfy_auto_layout_instance) {
+                        window.__comfy_auto_layout_instance.arrangeNodes();
+                    }
+                    break;
+                }
             }
             app.canvas.graph.afterChange(); app.canvas.draw(true, true); closePanel();
         }
 
-        function distribute(nodes, axis, isCenter, isEnd) {
-            const sorted = [...nodes].sort((a, b) => a.pos[axis] - b.pos[axis]);
-            const startNode = sorted[0]; const endNode = sorted[sorted.length - 1];
-            let sPos = isCenter ? (startNode.pos[axis] + startNode.size[axis]/2) : (isEnd ? (startNode.pos[axis] + startNode.size[axis]) : startNode.pos[axis]);
-            let ePos = isCenter ? (endNode.pos[axis] + endNode.size[axis]/2) : (isEnd ? (endNode.pos[axis] + endNode.size[axis]) : endNode.pos[axis]);
-            const step = (ePos - sPos) / (nodes.length - 1);
+        // --- 智能锚点查找函数 ---
+        function getAnchorNode(nodes, axis) {
+            const primaryProp = axis === 0 ? 0 : 1; 
+            const secondaryProp = axis === 0 ? 1 : 0; 
+
+            // 1. 找到主轴上的最小值
+            const minVal = Math.min(...nodes.map(n => n.pos[primaryProp]));
+            
+            // 2. 筛选出在容差范围内 (5px) 的“最左/最上”候选节点
+            const tolerance = 5;
+            let candidates = nodes.filter(n => n.pos[primaryProp] <= minVal + tolerance);
+
+            // 3. 按副轴排序
+            candidates.sort((a, b) => a.pos[secondaryProp] - b.pos[secondaryProp]);
+            
+            // 筛选出副轴上也是“最靠前”的节点 (容差5px)
+            const minSecVal = candidates[0].pos[secondaryProp];
+            candidates = candidates.filter(n => n.pos[secondaryProp] <= minSecVal + tolerance);
+
+            // 4. 优先选择“工作流开头”节点
+            const isStartNode = (n) => {
+                if (!n.inputs || n.inputs.length === 0) return true;
+                return !n.inputs.some(inp => inp.link !== null);
+            };
+
+            const startNodes = candidates.filter(isStartNode);
+            if (startNodes.length > 0) {
+                candidates = startNodes;
+            }
+
+            // 5. 最后使用 ID 排序兜底
+            candidates.sort((a, b) => a.id - b.id);
+
+            return candidates[0];
+        }
+
+        // --- 优化后的间距分布函数 ---
+        function distributeWithSpacing(nodes, axis, gap, alignCrossAxis) {
+            // 1. 智能选择锚点
+            const anchor = getAnchorNode(nodes, axis);
+
+            // 2. 将锚点从列表中移除，剩余节点进行排序
+            let remaining = nodes.filter(n => n.id !== anchor.id);
+            const crossAxis = axis === 0 ? 1 : 0;
+            
+            remaining.sort((a, b) => {
+                const diff1 = a.pos[axis] - b.pos[axis];
+                if (Math.abs(diff1) > 5) return diff1;
+                
+                const diff2 = a.pos[crossAxis] - b.pos[crossAxis];
+                if (Math.abs(diff2) > 5) return diff2;
+
+                return a.id - b.id;
+            });
+
+            // 3. 构建最终处理队列，锚点必须在第一位
+            const sorted = [anchor, ...remaining];
+
+            const getVisualSize = (node, ax) => {
+                if (ax === 1) { 
+                    if (node.type === "Reroute" || node.type === "Reroute (rgthree)") {
+                        return node.size[1];
+                    }
+                    const titleHeight = (window.LiteGraph && window.LiteGraph.NODE_TITLE_HEIGHT) || 30;
+                    return node.size[1] + titleHeight;
+                }
+                return node.size[0];
+            };
+            
+            // 初始化位置
+            let currentPos = anchor.pos[axis] + getVisualSize(anchor, axis) + gap;
+            
+            // 计算副轴对齐中心 (基于锚点)
+            const anchorVisualSizeOnCross = getVisualSize(anchor, crossAxis);
+            const anchorCenter = anchor.pos[crossAxis] + anchorVisualSizeOnCross / 2;
+
             sorted.forEach((n, i) => {
-                const target = sPos + i * step;
-                if (isCenter) n.pos[axis] = target - n.size[axis]/2;
-                else if (isEnd) n.pos[axis] = target - n.size[axis];
-                else n.pos[axis] = target;
+                if (i === 0) return; // 锚点位置不动
+
+                // 更新主轴位置
+                n.pos[axis] = currentPos;
+                
+                // 累加位置
+                currentPos += getVisualSize(n, axis) + gap;
+
+                if (alignCrossAxis) {
+                    // 更新副轴位置 (居中对齐)
+                    const myVisualSizeOnCross = getVisualSize(n, crossAxis);
+                    n.pos[crossAxis] = anchorCenter - myVisualSizeOnCross / 2;
+                }
             });
         }
     }

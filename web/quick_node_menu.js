@@ -2,6 +2,7 @@ import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
 
 // 注入自定义 CSS 样式 (使用 quick-menu- 前缀以防冲突)
+// 使用 CSS 变量来支持动态颜色设置
 const style = document.createElement("style");
 style.textContent = `
     /* 全屏透明遮罩 */
@@ -18,20 +19,20 @@ style.textContent = `
     /* 菜单容器 */
     .quick-menu-container {
         position: fixed;
-        background: rgba(30, 30, 30, 0.98); 
+        background: rgba(30, 30, 30, 0.98); /* 默认值，会被JS覆盖 */
         border: 1px solid #555;
         border-radius: 4px;
         box-shadow: 4px 4px 12px rgba(0, 0, 0, 0.5);
         color: #eee;
         font-family: sans-serif;
-        font-size: 12.5px; 
+        font-size: 12.5px; /* 默认值，会被JS覆盖 */
         z-index: 9999;
         min-width: 160px; 
         width: max-content; 
-        max-width: 400px;
+        max-width: 400px; /* 默认值，会被JS覆盖 */
         padding: 4px 0;
         user-select: none;
-        backdrop-filter: blur(8px);
+        backdrop-filter: var(--qnm-blur, blur(8px)); /* 动态毛玻璃 */
         opacity: 0; 
         transition: opacity 0.05s ease-in;
     }
@@ -53,7 +54,7 @@ style.textContent = `
 
     /* 悬停状态 - 使用稍不同的颜色 (紫色系) 以区分 Quick Menu */
     .quick-menu-item:hover, .quick-menu-item.active {
-        background: #6c5ce7; 
+        background: var(--qnm-hover-bg, #6c5ce7); 
         color: white;
     }
 
@@ -62,7 +63,7 @@ style.textContent = `
         background-color: rgba(0, 0, 0, 0.4); 
     }
     .quick-menu-item.pinned:hover, .quick-menu-item.pinned.active {
-        background: #6c5ce7;
+        background: var(--qnm-hover-bg, #6c5ce7);
     }
 
     /* 箭头 */
@@ -122,11 +123,11 @@ style.textContent = `
         align-items: center;
     }
     .quick-menu-context-item:hover {
-        background: #e74c3c; /* 红色表示移除操作 */
+        background: #e74c3c; /* 红色表示移除操作，保持默认 */
         color: white;
     }
     .quick-menu-context-item.pin-option:hover {
-        background: #6c5ce7; /* 普通操作颜色 */
+        background: var(--qnm-hover-bg, #6c5ce7); /* 普通操作颜色跟随主题 */
     }
 `;
 document.head.appendChild(style);
@@ -202,6 +203,50 @@ app.registerExtension({
                     headers: { "Content-Type": "application/json" }
                 });
             } catch (e) { console.error("Save quick last category failed", e); }
+        }
+
+        // --- 辅助函数：颜色处理 ---
+        function normalizeColor(input) {
+            if (!input) return null;
+            let color = input.trim();
+            // 处理 0x 前缀
+            if (color.startsWith("0x") || color.startsWith("0X")) {
+                color = "#" + color.substring(2);
+            }
+            // 处理无前缀
+            if (!color.startsWith("#")) {
+                color = "#" + color;
+            }
+            // 简单验证 Hex 格式
+            if (/^#[0-9A-Fa-f]{6}$/.test(color) || /^#[0-9A-Fa-f]{3}$/.test(color)) {
+                return color;
+            }
+            return null;
+        }
+
+        // --- 辅助函数：快捷键匹配 ---
+        function matchShortcut(e, shortcutStr) {
+            if (!shortcutStr) return false;
+            const parts = shortcutStr.split('+').map(s => s.trim().toLowerCase());
+            let key = parts.pop();
+            
+            // 处理特殊键名
+            if (key === "space") key = " ";
+            
+            if (e.key.toLowerCase() !== key) return false;
+            
+            const ctrl = parts.includes("ctrl");
+            const alt = parts.includes("alt");
+            const shift = parts.includes("shift");
+            const meta = parts.includes("meta") || parts.includes("cmd");
+            
+            // 严格匹配修饰键
+            if (e.ctrlKey !== ctrl) return false;
+            if (e.altKey !== alt) return false;
+            if (e.shiftKey !== shift) return false;
+            if (e.metaKey !== meta) return false;
+            
+            return true;
         }
 
         // --- 核心逻辑函数 (适配新逻辑) ---
@@ -331,6 +376,10 @@ app.registerExtension({
         }
 
         function updateLastCategory(key) {
+            // 检查设置：是否记住上次分类
+            const shouldRemember = app.ui.settings.getSettingValue("QuickNodeMenu.RememberLast", true);
+            if (!shouldRemember) return;
+
             if (cachedData.last_category === key) return;
             cachedData.last_category = key;
             saveLastCategory(key);
@@ -793,7 +842,12 @@ app.registerExtension({
                         const siblings = container.querySelectorAll('.quick-menu-item'); 
                         siblings.forEach(s => s.classList.remove('active'));
                         itemDiv.classList.add('active');
+                        
                         if (hoverTimer) clearTimeout(hoverTimer);
+                        
+                        // 获取设置中的延迟
+                        const delay = app.ui.settings.getSettingValue("QuickNodeMenu.HoverDelay", 40);
+
                         hoverTimer = setTimeout(() => {
                             closeLevelsAfter(levelIndex); 
                             closeContextMenu();
@@ -808,7 +862,7 @@ app.registerExtension({
                             if (subRect.right > window.innerWidth) subMenuEl.style.left = (rect.left - subRect.width + 1) + "px";
                             if (subRect.height > window.innerHeight) subMenuEl.style.top = "10px";
                             else if (subRect.bottom > window.innerHeight) subMenuEl.style.top = Math.max(0, window.innerHeight - subRect.height - 10) + "px";
-                        }, 40); 
+                        }, delay); 
                     };
                     itemDiv.addEventListener("mouseenter", activateSubmenu);
                     itemDiv.addEventListener("click", (e) => { e.stopPropagation(); activateSubmenu(); });
@@ -822,7 +876,9 @@ app.registerExtension({
                         siblings.forEach(s => s.classList.remove('active'));
                         itemDiv.classList.add('active');
                         if (hoverTimer) clearTimeout(hoverTimer);
-                        hoverTimer = setTimeout(() => { closeLevelsAfter(levelIndex); }, 40);
+                        
+                        const delay = app.ui.settings.getSettingValue("QuickNodeMenu.HoverDelay", 40);
+                        hoverTimer = setTimeout(() => { closeLevelsAfter(levelIndex); }, delay);
                     });
                 }
                 
@@ -836,6 +892,26 @@ app.registerExtension({
         function showMenu(structure, x, y, levelIndex, parentPath = "root") {
             const container = document.createElement("div");
             container.className = "quick-menu-container"; 
+            
+            // --- 应用设置样式 (动态覆盖 CSS) ---
+            const opacity = app.ui.settings.getSettingValue("QuickNodeMenu.Opacity", 0.98);
+            const fontSize = app.ui.settings.getSettingValue("QuickNodeMenu.FontSize", 12.5);
+            const maxWidth = app.ui.settings.getSettingValue("QuickNodeMenu.MaxWidth", 400);
+
+            // 读取新增设置
+            const enableBlur = app.ui.settings.getSettingValue("QuickNodeMenu.EnableBlur", true);
+            const hoverColorRaw = app.ui.settings.getSettingValue("QuickNodeMenu.ColorHover", "#6c5ce7");
+            const validHover = normalizeColor(hoverColorRaw) || "#6c5ce7";
+
+            container.style.background = `rgba(30, 30, 30, ${opacity})`;
+            container.style.fontSize = `${fontSize}px`;
+            container.style.maxWidth = `${maxWidth}px`;
+
+            // 设置 CSS 变量
+            container.style.setProperty('--qnm-blur', enableBlur ? 'blur(8px)' : 'none');
+            container.style.setProperty('--qnm-hover-bg', validHover);
+            // ------------------------------------
+
             container._menuArgs = { structure, levelIndex, parentPath };
             
             renderMenuContent(container, structure, levelIndex, parentPath);
@@ -864,6 +940,18 @@ app.registerExtension({
         }
 
         function initMenu() {
+            // 检查功能是否启用
+            const enabled = app.ui.settings.getSettingValue("QuickNodeMenu.Enabled", true);
+            if (!enabled) return;
+
+            // --- 修改：立即获取当前鼠标位置 ---
+            // 每次调用 initMenu 时，更新 lockedCanvasPos 为当前画布的鼠标位置
+            // 这样无论是快捷键触发还是外部调用，节点都会生成在鼠标当前所在位置
+            if (app.canvas && app.canvas.graph_mouse) {
+                lockedCanvasPos.x = app.canvas.graph_mouse[0];
+                lockedCanvasPos.y = app.canvas.graph_mouse[1];
+            }
+
             closeAll(); 
             // 每次打开时重新获取数据，确保 Add Node Menu 的修改能同步过来
             fetchData().then(() => {
@@ -890,7 +978,10 @@ app.registerExtension({
                 const rootMenu = showMenu(tree, 0, 0, 0, "root"); 
 
                 // 定位逻辑 (记忆上次位置)
-                const lastCategory = cachedData.last_category;
+                // 检查是否应该记住上次位置
+                const shouldRemember = app.ui.settings.getSettingValue("QuickNodeMenu.RememberLast", true);
+                const lastCategory = shouldRemember ? cachedData.last_category : null;
+
                 let targetOffsetY = 0;
                 let targetOffsetX = 0;
                 const rect = rootMenu.getBoundingClientRect();
@@ -931,12 +1022,17 @@ app.registerExtension({
         // 初始化加载数据
         fetchData();
 
-        // 绑定快捷键 Q
+        // --- 修改：暴露全局变量 ---
+        window.alignLayout_openQuickNodeMenu = initMenu;
+
+        // 绑定快捷键
         window.addEventListener("keydown", function(e) {
-            if (e.key.toLowerCase() === "q") {
+            // 获取用户设置的快捷键，默认为 Q
+            const shortcutSetting = app.ui.settings.getSettingValue("QuickNodeMenu.Shortcut", "Q");
+
+            if (matchShortcut(e, shortcutSetting)) {
                 const target = e.target;
                 if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
-                if (e.ctrlKey || e.altKey || e.metaKey || e.shiftKey) return;
                 
                 // --- 互斥逻辑：检测 Add Node Menu 是否存在，存在则点击其遮罩层关闭之 ---
                 const addMenuOverlay = document.querySelector(".add-node-menu-overlay");
@@ -944,10 +1040,10 @@ app.registerExtension({
                     addMenuOverlay.click();
                 }
 
-                lockedCanvasPos.x = app.canvas.graph_mouse[0];
-                lockedCanvasPos.y = app.canvas.graph_mouse[1];
+                // 修改：不再需要手动赋值 lockedCanvasPos，直接调用 initMenu 即可
                 initMenu();
             }
+            if (e.key === "Escape") closeAll();
         });
     }
 });

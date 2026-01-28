@@ -4,19 +4,35 @@ import { app } from "../../scripts/app.js";
 app.registerExtension({
     name: "Comfy.NodeResizer",
     async setup() {
+        // --- 设置 ID 常量 ---
+        const SETTING_IDS = {
+            RADIUS: "NodeResizer.Radius",
+            FLICK_DIST: "NodeResizer.FlickDistance",
+            FLICK_SPEED: "NodeResizer.FlickSpeed",
+            SHORTCUT: "NodeResizer.Shortcut",
+            ENABLED: "NodeResizer.Enabled",
+            // 按钮配置 ID
+            BTN_TOP: "NodeResizer.Btn.Top",
+            BTN_BOTTOM: "NodeResizer.Btn.Bottom",
+            BTN_LEFT: "NodeResizer.Btn.Left",
+            BTN_RIGHT: "NodeResizer.Btn.Right",
+            BTN_TOP_LEFT: "NodeResizer.Btn.TopLeft",
+            BTN_TOP_RIGHT: "NodeResizer.Btn.TopRight",
+            BTN_BOTTOM_LEFT: "NodeResizer.Btn.BottomLeft",
+            BTN_BOTTOM_RIGHT: "NodeResizer.Btn.BottomRight"
+        };
+
         // --- 核心参数与状态 ---
         let lastMousePos = { x: 0, y: 0 };
         let flickStartPos = null;
         let flickStartTime = 0;
         let isTrackingFlick = false;
 
-        const radius = 140; 
+        // 静态常量
         const btnBg = "rgba(34, 34, 34, 0.6)"; 
         const iconScale = 0.7; 
-        const flickDistThreshold = 80;  
-        const flickSpeedThreshold = 0.6; 
 
-        // SVG 图标库 - 已根据你提供的最新代码进行内联化，确保不产生 CSS 冲突
+        // SVG 图标库
         const svgIcons = {
             top: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 17.07 17.07"><rect fill="#c2c2c2" x="4.89" y="6.6" width="7.3" height="7.3" rx="1.13"/><line stroke="#c2c2c2" stroke-linecap="round" stroke-miterlimit="10" stroke-width=".69" fill="none" x1="3.36" y1="4.48" x2="13.71" y2="4.48"/><circle fill="none" stroke="none" cx="8.54" cy="8.54" r="8.54"/></svg>`,
             bottom: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 17.07 17.07"><rect fill="#c2c2c2" x="4.89" y="3.17" width="7.3" height="7.3" rx="1.13"/><line stroke="#c2c2c2" stroke-linecap="round" stroke-miterlimit="10" stroke-width=".69" fill="none" x1="3.36" y1="12.59" x2="13.71" y2="12.59"/><circle fill="none" stroke="none" cx="8.54" cy="8.54" r="8.54"/></svg>`,
@@ -28,17 +44,25 @@ app.registerExtension({
             min_size: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 11 11"><circle fill="none" stroke="none" cx="5.5" cy="5.5" r="5.5"/><polyline stroke="#c2c2c2" stroke-miterlimit="10" stroke-width=".86" fill="none" points="7.2 2 7.2 4 9.2 4"/><polyline stroke="#c2c2c2" stroke-miterlimit="10" stroke-width=".86" fill="none" points="2.2 4 4.2 4 4.2 2"/><polyline stroke="#c2c2c2" stroke-miterlimit="10" stroke-width=".86" fill="none" points="4.2 9 4.2 7 2.2 7"/><polyline stroke="#c2c2c2" stroke-miterlimit="10" stroke-width=".86" fill="none" points="9.2 7 7.2 7 7.2 9"/></svg>`
         };
 
-        // 按顺时针映射 8 个方向
-        const ringActions = [
-            { icon: svgIcons.right, title: "右侧拉伸", cmd: "stretch_right", angle: 0 },
-            { icon: svgIcons.def_size, title: "默认尺寸 (320px)", cmd: "def_size", angle: 45 },  // SE: 右下
-            { icon: svgIcons.bottom, title: "底部拉伸", cmd: "stretch_bottom", angle: 90 },
-            { icon: svgIcons.min_size, title: "最小尺寸", cmd: "min_size", angle: 135 },         // SW: 左下
-            { icon: svgIcons.left, title: "左侧拉伸", cmd: "stretch_left", angle: 180 },
-            { icon: svgIcons.h_max, title: "水平两侧拉伸", cmd: "h_max", angle: 225 },          // NW: 左上
-            { icon: svgIcons.top, title: "顶部拉伸", cmd: "stretch_top", angle: 270 },
-            { icon: svgIcons.v_max, title: "垂直两侧拉伸", cmd: "v_max", angle: 315 },          // NE: 右上
-        ];
+        // 命令到图标 Key 的映射
+        const cmdToIconKey = {
+            "stretch_right": "right",
+            "def_size": "def_size",
+            "stretch_bottom": "bottom",
+            "min_size": "min_size",
+            "stretch_left": "left",
+            "h_max": "h_max",
+            "stretch_top": "top",
+            "v_max": "v_max"
+        };
+
+        const getIconHtml = (cmd) => {
+            const key = cmdToIconKey[cmd] || cmd;
+            return svgIcons[key] || "";
+        };
+
+        // 按顺时针映射 8 个方向 (此数组现由 updateRingButtons 动态生成，此处仅保留引用结构)
+        let ringActions = [];
 
         // --- UI 初始化 ---
         const panel = document.createElement("div");
@@ -64,18 +88,49 @@ app.registerExtension({
         indicatorContainer.appendChild(pointerWrapper);
         ringContainer.appendChild(indicatorContainer);
 
-        // 渲染按钮
-        ringActions.forEach(action => {
-            const isSpecial = ["stretch_top", "stretch_bottom", "stretch_left", "stretch_right"].includes(action.cmd);
-            const w = isSpecial ? 63 : 54;
-            const h = isSpecial ? 42 : 36;
-            const btn = createPillButton(action.icon, action.title, w, h);
-            const rad = (action.angle * Math.PI) / 180;
-            btn.style.left = `${250 + radius * Math.cos(rad) - (w / 2)}px`;
-            btn.style.top = `${200 + radius * Math.sin(rad) - (h / 2)}px`;
-            btn.onclick = (e) => { e.stopPropagation(); processResize(action.cmd); };
-            ringContainer.appendChild(btn);
-        });
+        // 更新按钮位置函数 (支持动态半径 + 动态设置)
+        const updateRingButtons = () => {
+             // 从设置中读取最新配置
+             const s = app.ui.settings;
+             ringActions = [
+                { icon: getIconHtml(s.getSettingValue(SETTING_IDS.BTN_RIGHT, "stretch_right")), title: "Right", cmd: s.getSettingValue(SETTING_IDS.BTN_RIGHT, "stretch_right"), angle: 0 },
+                { icon: getIconHtml(s.getSettingValue(SETTING_IDS.BTN_BOTTOM_RIGHT, "def_size")), title: "Bottom-Right", cmd: s.getSettingValue(SETTING_IDS.BTN_BOTTOM_RIGHT, "def_size"), angle: 45 },
+                { icon: getIconHtml(s.getSettingValue(SETTING_IDS.BTN_BOTTOM, "stretch_bottom")), title: "Bottom", cmd: s.getSettingValue(SETTING_IDS.BTN_BOTTOM, "stretch_bottom"), angle: 90 },
+                { icon: getIconHtml(s.getSettingValue(SETTING_IDS.BTN_BOTTOM_LEFT, "min_size")), title: "Bottom-Left", cmd: s.getSettingValue(SETTING_IDS.BTN_BOTTOM_LEFT, "min_size"), angle: 135 },
+                { icon: getIconHtml(s.getSettingValue(SETTING_IDS.BTN_LEFT, "stretch_left")), title: "Left", cmd: s.getSettingValue(SETTING_IDS.BTN_LEFT, "stretch_left"), angle: 180 },
+                { icon: getIconHtml(s.getSettingValue(SETTING_IDS.BTN_TOP_LEFT, "h_max")), title: "Top-Left", cmd: s.getSettingValue(SETTING_IDS.BTN_TOP_LEFT, "h_max"), angle: 225 },
+                { icon: getIconHtml(s.getSettingValue(SETTING_IDS.BTN_TOP, "stretch_top")), title: "Top", cmd: s.getSettingValue(SETTING_IDS.BTN_TOP, "stretch_top"), angle: 270 },
+                { icon: getIconHtml(s.getSettingValue(SETTING_IDS.BTN_TOP_RIGHT, "v_max")), title: "Top-Right", cmd: s.getSettingValue(SETTING_IDS.BTN_TOP_RIGHT, "v_max"), angle: 315 },
+             ];
+
+             // 清空旧按钮
+             while (ringContainer.querySelectorAll('.comfy-node-resizer-btn').length > 0) {
+                ringContainer.querySelector('.comfy-node-resizer-btn').remove();
+            }
+
+            // 获取当前半径设置
+            const currentRadius = app.ui.settings.getSettingValue(SETTING_IDS.RADIUS, 140);
+
+            // 渲染按钮
+            ringActions.forEach(action => {
+                // 根据当前分配的命令判断按钮形状 (如果分配的是单向拉伸，用长条形；否则用短圆形)
+                const isSpecial = ["stretch_top", "stretch_bottom", "stretch_left", "stretch_right"].includes(action.cmd);
+                const w = isSpecial ? 63 : 54;
+                const h = isSpecial ? 42 : 36;
+                
+                const btn = createPillButton(action.icon, action.title, w, h);
+                const rad = (action.angle * Math.PI) / 180;
+                
+                // 中心定位计算
+                btn.style.left = `${250 + currentRadius * Math.cos(rad) - (w / 2)}px`;
+                btn.style.top = `${200 + currentRadius * Math.sin(rad) - (h / 2)}px`;
+                btn.onclick = (e) => { e.stopPropagation(); processResize(action.cmd); };
+                ringContainer.appendChild(btn);
+            });
+        };
+
+        // 初始构建
+        updateRingButtons();
 
         document.body.appendChild(panel);
 
@@ -105,6 +160,10 @@ app.registerExtension({
         window.__comfy_resizer_close = closePanel;
 
         window.addEventListener("mousemove", (e) => {
+            // 检查功能是否启用
+            const enabled = app.ui.settings.getSettingValue(SETTING_IDS.ENABLED, true);
+            if (!enabled) return;
+
             lastMousePos = { x: e.clientX, y: e.clientY };
             if (panel.style.display === "block" && isTrackingFlick && flickStartPos) {
                 const dx = e.clientX - flickStartPos.x;
@@ -112,10 +171,15 @@ app.registerExtension({
                 const dist = Math.sqrt(dx * dx + dy * dy);
                 const angle = Math.atan2(dy, dx) * 180 / Math.PI;
                 pointerWrapper.style.transform = `rotate(${angle + 90}deg)`;
+                
+                // 获取当前的甩动阈值
+                const currentDistThreshold = app.ui.settings.getSettingValue(SETTING_IDS.FLICK_DIST, 80);
+                const currentSpeedThreshold = app.ui.settings.getSettingValue(SETTING_IDS.FLICK_SPEED, 0.6);
+                
                 pointerWrapper.style.opacity = dist > 20 ? "1" : "0.3";
-                if (dist > flickDistThreshold) {
+                if (dist > currentDistThreshold) {
                     const timeDelta = Date.now() - flickStartTime;
-                    if (dist / timeDelta > flickSpeedThreshold) {
+                    if (dist / timeDelta > currentSpeedThreshold) {
                         isTrackingFlick = false; 
                         handleFlick((angle + 360) % 360);
                     }
@@ -135,13 +199,48 @@ app.registerExtension({
         }
 
         window.addEventListener("keydown", (e) => {
-            if (e.altKey && e.code === "KeyS") {
+            // 检查功能是否启用
+            const enabled = app.ui.settings.getSettingValue(SETTING_IDS.ENABLED, true);
+            if (!enabled) return;
+
+            // 获取当前的快捷键设置 (例如 "Alt+S")
+            const shortcutStr = app.ui.settings.getSettingValue(SETTING_IDS.SHORTCUT, "Alt+S");
+            
+            if (!shortcutStr) return;
+
+             // 解析快捷键字符串
+            const keys = shortcutStr.split('+').map(k => k.trim().toLowerCase());
+            const mainKey = keys.pop(); 
+            
+            const isCtrl = keys.includes('ctrl') || keys.includes('control');
+            const isAlt = keys.includes('alt') || keys.includes('option');
+            const isShift = keys.includes('shift');
+            const isMeta = keys.includes('meta') || keys.includes('cmd') || keys.includes('command');
+            
+            if (e.ctrlKey !== isCtrl) return;
+            if (e.altKey !== isAlt) return;
+            if (e.shiftKey !== isShift) return;
+            if (e.metaKey !== isMeta) return;
+
+            const code = e.code.toLowerCase();
+            const key = e.key.toLowerCase();
+            
+            let match = false;
+            if (key === mainKey) match = true;
+            if (code === mainKey) match = true;
+            if (code === 'key' + mainKey) match = true;
+            if (code === mainKey) match = true;
+
+            if (match) {
                 const selected = Object.values(app.canvas.selected_nodes || {});
                 if (selected.length < 1) return;
                 e.preventDefault();
                 
                 // 互斥：强制关闭对齐面板
                 if (window.__comfy_align_close) window.__comfy_align_close();
+
+                // 在打开面板时，重新计算按钮位置（以防 Radius 改变或按钮配置改变）
+                updateRingButtons();
 
                 panel.style.left = (lastMousePos.x - 250) + "px";
                 panel.style.top = (lastMousePos.y - 200) + "px";

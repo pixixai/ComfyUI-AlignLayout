@@ -1,0 +1,42 @@
+name: Build and Sync README
+
+on:
+  push:
+    # --- 监控路径已更新：只有 docs 文件夹或脚本变动时触发 ---
+    paths:
+      - 'docs/**'
+      - 'scripts/build_readme.py'
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Generate README
+        run: python scripts/build_readme.py
+
+      - name: Commit and Push Changes
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
+          git add README.md
+          if git diff --staged --quiet; then
+            echo "没有内容变化，跳过提交。"
+          else
+            git commit -m "docs: 自动同步 README (来自 docs/ 目录) [skip ci]"
+            git push
+          fi

@@ -2,6 +2,7 @@ import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
 
 // 注入自定义 CSS 样式
+// 使用 CSS 变量来支持动态颜色设置
 const style = document.createElement("style");
 style.textContent = `
     /* 全屏透明遮罩 */
@@ -18,20 +19,20 @@ style.textContent = `
     /* 菜单容器 */
     .add-node-menu-container {
         position: fixed;
-        background: rgba(30, 30, 30, 0.98); 
+        background: rgba(30, 30, 30, 0.98); /* 默认值，会被JS覆盖 */
         border: 1px solid #444;
         border-radius: 4px;
         box-shadow: 4px 4px 12px rgba(0, 0, 0, 0.5);
         color: #eee;
         font-family: sans-serif;
-        font-size: 12.5px; 
+        font-size: 12.5px; /* 默认值，会被JS覆盖 */
         z-index: 9999;
         min-width: 160px; 
         width: max-content; 
-        max-width: 400px;
+        max-width: 400px; /* 默认值，会被JS覆盖 */
         padding: 4px 0;
         user-select: none;
-        backdrop-filter: blur(8px);
+        backdrop-filter: var(--anm-blur, blur(8px)); /* 动态毛玻璃 */
         opacity: 0; 
         transition: opacity 0.05s ease-in;
     }
@@ -49,12 +50,12 @@ style.textContent = `
         align-items: center;
         transition: background 0.1s; 
         position: relative;
-        border-left: 3px solid transparent; /* 预留给 Quick 标记的线条位置 */
+        border-left: 3px solid transparent; 
     }
 
-    /* 悬停状态 */
+    /* 悬停状态 - 动态颜色 */
     .add-node-menu-item:hover, .add-node-menu-item.active {
-        background: #2a60a8;
+        background: var(--anm-hover-bg, #2a60a8);
         color: white;
     }
 
@@ -63,13 +64,13 @@ style.textContent = `
         background-color: rgba(0, 0, 0, 0.4); 
     }
     .add-node-menu-item.pinned:hover, .add-node-menu-item.pinned.active {
-        background: #2a60a8;
+        background: var(--anm-hover-bg, #2a60a8);
     }
 
-    /* Quick 标记状态 (绿色) - 原收藏状态 */
+    /* Quick 标记状态 - 动态颜色 */
     .add-node-menu-item.quick-marked {
-        border-left: 3px solid #2ecc71; 
-        background-color: rgba(46, 204, 113, 0.05); 
+        border-left: 3px solid var(--anm-mark-color, #2ecc71); 
+        background-color: var(--anm-mark-bg, rgba(46, 204, 113, 0.05)); 
     }
 
     /* 箭头 */
@@ -131,7 +132,7 @@ style.textContent = `
         align-items: center;
     }
     .add-node-menu-context-item:hover {
-        background: #2a60a8;
+        background: var(--anm-hover-bg, #2a60a8);
         color: white;
     }
 `;
@@ -160,10 +161,9 @@ app.registerExtension({
         
         const UNCATEGORIZED_NAME = "Others";
         // 特殊键：用于存储所有被置顶的“节点”的类名 (Class Name)
-        // 这样无论节点在哪个文件夹显示，或者显示名称是什么语言，都能被识别
         const GLOBAL_NODE_PINS_KEY = "__ALL_NODES__";
 
-        const PRIMARY_CATEGORIES = [
+        const DEFAULT_PRIMARY_CATEGORIES = [
             "utils", "sampling", "采样", "loaders", "加载器",
             "latent", "Latent", "_for_testing", "_用于测试",
             "advanced", "高级", "mask", "遮罩",
@@ -182,10 +182,16 @@ app.registerExtension({
                 const data = await res.json();
                 if (data) {
                     cachedData = data;
-                    if (!cachedData.pins) cachedData.pins = {};
-                    if (!cachedData.pins[GLOBAL_NODE_PINS_KEY]) cachedData.pins[GLOBAL_NODE_PINS_KEY] = [];
+                    if (!cachedData.pins) {
+                        cachedData.pins = {};
+                    }
+                    if (!cachedData.pins[GLOBAL_NODE_PINS_KEY]) {
+                        cachedData.pins[GLOBAL_NODE_PINS_KEY] = [];
+                    }
                 }
-            } catch (e) { console.error("[AddNodeMenu] Load failed", e); }
+            } catch (e) { 
+                console.error("[AddNodeMenu] Load failed", e); 
+            }
         }
 
         async function savePins(pinsData) {
@@ -195,7 +201,9 @@ app.registerExtension({
                     body: JSON.stringify(pinsData),
                     headers: { "Content-Type": "application/json" }
                 });
-            } catch (e) { console.error("Save pins failed", e); }
+            } catch (e) { 
+                console.error("Save pins failed", e); 
+            }
         }
 
         async function saveQuick(quickData) { 
@@ -205,7 +213,9 @@ app.registerExtension({
                     body: JSON.stringify(quickData),
                     headers: { "Content-Type": "application/json" }
                 });
-            } catch (e) { console.error("Save quick failed", e); }
+            } catch (e) { 
+                console.error("Save quick failed", e); 
+            }
         }
 
         async function saveLastCategory(categoryData) {
@@ -215,44 +225,94 @@ app.registerExtension({
                     body: JSON.stringify(categoryData),
                     headers: { "Content-Type": "application/json" }
                 });
-            } catch (e) { console.error("Save last category failed", e); }
+            } catch (e) { 
+                console.error("Save last category failed", e); 
+            }
         }
 
-        // --- 核心逻辑函数 (修复版) ---
+        // --- 辅助函数：颜色处理 ---
+        function normalizeColor(input) {
+            if (!input) return null;
+            let color = input.trim();
+            // 处理 0x 前缀
+            if (color.startsWith("0x") || color.startsWith("0X")) {
+                color = "#" + color.substring(2);
+            }
+            // 处理无前缀
+            if (!color.startsWith("#")) {
+                color = "#" + color;
+            }
+            // 简单验证 Hex 格式
+            if (/^#[0-9A-Fa-f]{6}$/.test(color) || /^#[0-9A-Fa-f]{3}$/.test(color)) {
+                return color;
+            }
+            return null;
+        }
 
-        // 获取当前文件夹下的本地置顶列表 (用于文件夹)
+        function hexToRgba(hex, alpha) {
+            let c = hex.substring(1);
+            if (c.length === 3) {
+                c = c.split('').map(char => char + char).join('');
+            }
+            const num = parseInt(c, 16);
+            const r = (num >> 16) & 255;
+            const g = (num >> 8) & 255;
+            const b = num & 255;
+            return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+        }
+
+        // --- 辅助函数：快捷键匹配 ---
+        function matchShortcut(e, shortcutStr) {
+            if (!shortcutStr) return false;
+            const parts = shortcutStr.split('+').map(s => s.trim().toLowerCase());
+            let key = parts.pop();
+            if (key === "space") key = " ";
+            if (e.key.toLowerCase() !== key) return false;
+            
+            const ctrl = parts.includes("ctrl");
+            const alt = parts.includes("alt");
+            const shift = parts.includes("shift");
+            const meta = parts.includes("meta") || parts.includes("cmd");
+            
+            if (e.ctrlKey !== ctrl) return false;
+            if (e.altKey !== alt) return false;
+            if (e.shiftKey !== shift) return false;
+            if (e.metaKey !== meta) return false;
+            
+            return true;
+        }
+
+        function getPrimaryCategories() {
+            const settingStr = app.ui.settings.getSettingValue("AddNodeMenu.PrimaryCategories", "");
+            if (!settingStr) return DEFAULT_PRIMARY_CATEGORIES;
+            return settingStr.split(/,|，/).map(s => s.trim()).filter(s => s);
+        }
+
+        // --- 核心逻辑函数 ---
+
         function getLocalPinnedList(parentPath) {
             if (!cachedData.pins) cachedData.pins = {};
             return cachedData.pins[parentPath] || [];
         }
 
-        // 获取全局节点置顶列表 (用于节点，跨语言)
         function getGlobalNodePinnedList() {
             if (!cachedData.pins) cachedData.pins = {};
             if (!cachedData.pins[GLOBAL_NODE_PINS_KEY]) cachedData.pins[GLOBAL_NODE_PINS_KEY] = [];
             return cachedData.pins[GLOBAL_NODE_PINS_KEY];
         }
 
-        // 判断是否置顶
-        // key: 显示名称 (对于文件夹必须用这个)
-        // type: 节点类名 (对于节点必须用这个)
-        // isCategory: 是否是文件夹
         function isPinned(parentPath, key, isCategory, type) {
             if (!isCategory && type) {
-                // 如果是节点，检查全局类名列表
                 const globalList = getGlobalNodePinnedList();
                 return globalList.includes(type);
             } else {
-                // 如果是文件夹，检查本地路径列表
                 const localList = getLocalPinnedList(parentPath);
                 return localList.includes(key);
             }
         }
 
-        // 切换置顶状态
         function togglePin(parentPath, key, isCategory, type) {
             if (!isCategory && type) {
-                // --- 节点逻辑：操作全局列表 ---
                 const list = getGlobalNodePinnedList();
                 const idx = list.indexOf(type);
                 if (idx === -1) {
@@ -262,7 +322,6 @@ app.registerExtension({
                 }
                 savePins(cachedData.pins);
             } else {
-                // --- 文件夹逻辑：操作本地列表 ---
                 if (!cachedData.pins[parentPath]) cachedData.pins[parentPath] = [];
                 const list = cachedData.pins[parentPath];
                 const idx = list.indexOf(key);
@@ -275,22 +334,17 @@ app.registerExtension({
             }
         }
 
-        // 更新置顶顺序 (拖拽用)
         function updatePinOrder(parentPath, key, isCategory, type, targetIndex) {
             let list;
             let itemKey;
-
             if (!isCategory && type) {
-                // 节点：在全局列表中移动
                 list = getGlobalNodePinnedList();
                 itemKey = type;
             } else {
-                // 文件夹：在本地列表中移动
                 if (!cachedData.pins[parentPath]) cachedData.pins[parentPath] = [];
                 list = cachedData.pins[parentPath];
                 itemKey = key;
             }
-
             const oldIndex = list.indexOf(itemKey);
             if (oldIndex !== -1) {
                 list.splice(oldIndex, 1);
@@ -298,19 +352,15 @@ app.registerExtension({
                     targetIndex--;
                 }
             }
-            
             if (targetIndex < 0) targetIndex = 0;
             if (targetIndex > list.length) targetIndex = list.length;
-            
             list.splice(targetIndex, 0, itemKey);
             savePins(cachedData.pins);
         }
 
-        // 移除置顶
         function removePin(parentPath, key, isCategory, type) {
             let list;
             let itemKey;
-
             if (!isCategory && type) {
                 list = getGlobalNodePinnedList();
                 itemKey = type;
@@ -319,7 +369,6 @@ app.registerExtension({
                 list = cachedData.pins[parentPath];
                 itemKey = key;
             }
-
             const idx = list.indexOf(itemKey);
             if (idx !== -1) {
                 list.splice(idx, 1);
@@ -327,7 +376,6 @@ app.registerExtension({
             }
         }
         
-        // 收藏检查 (已修复：节点使用 type 比较，不再依赖显示名称)
         function isQuick(quickObj) {
             if (!cachedData.quick) return false;
             return cachedData.quick.some(f => {
@@ -335,7 +383,6 @@ app.registerExtension({
                     return f.category === quickObj.category; 
                 }
                 if (!f.isCategory && !quickObj.isCategory) {
-                    // 节点仅仅比较 type (类名)，这是跨语言唯一的
                     return f.type === quickObj.type; 
                 }
                 return false;
@@ -346,10 +393,8 @@ app.registerExtension({
             if (!cachedData.quick) cachedData.quick = [];
             const exists = isQuick(quickObj);
             if (!exists) {
-                // 仅保存核心标识符，不再保存 title，避免语言切换导致的旧名称残留
-                // 渲染时会根据 type 动态获取当前的 title
                 cachedData.quick.push({
-                    type: quickObj.type,   // 核心标识符
+                    type: quickObj.type,
                     category: quickObj.category, 
                     isCategory: quickObj.isCategory,
                     timestamp: Date.now()
@@ -361,12 +406,8 @@ app.registerExtension({
         function removeQuick(quickObj) {
              if (!cachedData.quick) return;
              const idx = cachedData.quick.findIndex(f => {
-                if (f.isCategory && quickObj.isCategory) {
-                    return f.category === quickObj.category;
-                }
-                if (!f.isCategory && !quickObj.isCategory) {
-                    return f.type === quickObj.type;
-                }
+                if (f.isCategory && quickObj.isCategory) return f.category === quickObj.category;
+                if (!f.isCategory && !quickObj.isCategory) return f.type === quickObj.type;
                 return false;
              });
              if (idx !== -1) {
@@ -376,6 +417,8 @@ app.registerExtension({
         }
 
         function updateLastCategory(key) {
+            const shouldRemember = app.ui.settings.getSettingValue("AddNodeMenu.RememberLast", true);
+            if (!shouldRemember) return;
             if (cachedData.last_category === key) return;
             cachedData.last_category = key;
             saveLastCategory(key);
@@ -385,11 +428,27 @@ app.registerExtension({
             const tree = {};
             const registered = LiteGraph.registered_node_types;
 
+            // 获取排除列表
+            const excludeStr = app.ui.settings.getSettingValue("AddNodeMenu.ExcludeList", "");
+            const excludeList = excludeStr.split(/,|，/).map(s => s.trim().toLowerCase()).filter(s => s);
+
             for (const className in registered) {
                 const nodeData = registered[className];
                 if (nodeData.hidden) continue;
 
                 const category = nodeData.category || UNCATEGORIZED_NAME;
+                const displayName = nodeData.title || nodeData.name || className;
+
+                // 排除逻辑：检查分类名或节点名是否包含排除关键字
+                if (excludeList.length > 0) {
+                    const lowerCat = category.toLowerCase();
+                    const lowerName = displayName.toLowerCase();
+                    const shouldExclude = excludeList.some(ex => lowerCat.includes(ex) || lowerName.includes(ex));
+                    if (shouldExclude) {
+                        continue;
+                    }
+                }
+
                 const parts = category.split('/');
                 
                 let currentLevel = tree;
@@ -400,10 +459,9 @@ app.registerExtension({
                     currentLevel = currentLevel[part]._children;
                 }
                 
-                const displayName = nodeData.title || nodeData.name || className;
                 currentLevel[displayName] = { 
                     _isCategory: false, 
-                    type: className, // 这是一个重要的稳定 ID
+                    type: className, 
                     title: displayName,
                     category: category 
                 };
@@ -463,10 +521,10 @@ app.registerExtension({
         }
 
         function getPrimaryIndex(key) {
-            return PRIMARY_CATEGORIES.findIndex(p => p.toLowerCase() === key.toLowerCase());
+            const categories = getPrimaryCategories();
+            return categories.findIndex(p => p.toLowerCase() === key.toLowerCase());
         }
 
-        // 修改后的排序逻辑：同时支持本地文件夹置顶和全局节点置顶
         function sortWithPins(keys, parentPath, structure, defaultSortFn) {
             const localPins = getLocalPinnedList(parentPath);
             const globalNodePins = getGlobalNodePinnedList();
@@ -479,25 +537,15 @@ app.registerExtension({
                 let isP = false;
                 
                 if (item && !item._isCategory && item.type) {
-                    // 如果是节点，检查全局列表
                     if (globalNodePins.includes(item.type)) isP = true;
                 } else {
-                    // 如果是文件夹，检查本地列表
                     if (localPins.includes(k)) isP = true;
                 }
-
                 if (isP) pinned.push(k);
                 else unpinned.push(k);
             });
             
-            // 置顶项排序
             pinned.sort((a, b) => {
-                // 计算权重：越小越靠前
-                // 全局置顶节点：权重 = 0 ~ N (按照置顶顺序)
-                // 本地置顶文件夹：权重 = 10000 ~ 10000+N (排在节点之后，或者你可以反过来)
-                // 这里我们设定：谁在各自的列表中索引小，谁就靠前。
-                // 如果一个是节点一个是文件夹，我们让节点靠前 (可调整)
-                
                 const itemA = structure[a];
                 const itemB = structure[b];
                 
@@ -515,12 +563,10 @@ app.registerExtension({
                 } else if (localPins.includes(b)) {
                     scoreB = 100000 + localPins.indexOf(b);
                 }
-
                 return scoreA - scoreB;
             });
 
             unpinned.sort((a, b) => defaultSortFn(a, b, structure));
-
             return [...pinned, ...unpinned];
         }
 
@@ -549,7 +595,7 @@ app.registerExtension({
             menu.className = "add-node-menu-context"; 
             
             const isCategory = itemData._isCategory;
-            const type = itemData.type; // 节点的类名
+            const type = itemData.type; 
             
             const pinned = isPinned(parentPath, key, isCategory, type);
             const isMarked = isQuick(quickObj);
@@ -592,7 +638,6 @@ app.registerExtension({
             menu.style.top = y + "px";
         }
 
-        // --- 核心渲染逻辑 ---
         function renderMenuContent(container, structure, levelIndex, parentPath) {
             container.innerHTML = ''; 
 
@@ -632,7 +677,6 @@ app.registerExtension({
                 finalKeys = sortWithPins(allKeys, parentPath, structure, defaultSort);
             }
 
-            // 计算当前视图中置顶项目的数量 (用于判断拖拽行为)
             let pinnedCount = 0;
             finalKeys.forEach(k => {
                 if (k === "---SEPARATOR---") return;
@@ -641,11 +685,7 @@ app.registerExtension({
             });
 
             container.ondragover = (e) => {
-                // 只有当没有任何置顶项时，才允许拖拽到 Header 触发 "置顶到第一位"
-                // 且源必须匹配当前文件夹
                 if (dragSource && dragSource.parentPath === parentPath && !dragSource.isPinned && pinnedCount === 0) {
-                    // 如果是节点，parentPath 不重要，重要的是它是否已经在 global pin 中。
-                    // 但为了 UI 交互一致，我们仍然限制在当前文件夹内操作。
                     e.preventDefault();
                     const rect = container.getBoundingClientRect();
                     if (e.clientY - rect.top < 30) { 
@@ -677,7 +717,6 @@ app.registerExtension({
                     const sep = document.createElement("div");
                     sep.className = "add-node-menu-separator"; 
                     sep.dataset.isSeparator = "true";
-                    
                     sep.ondragover = (e) => {
                          e.preventDefault();
                          if (dragSource && dragSource.parentPath === parentPath) {
@@ -695,16 +734,11 @@ app.registerExtension({
                     sep.ondrop = (e) => {
                         e.preventDefault();
                         if (dragSource && dragSource.parentPath === parentPath) {
-                             // 计算目标索引
-                             // 简单处理：如果是置顶区域，我们假设所有的 separator 都在置顶区下面是不可能的
-                             // 实际上 separator 只在 root 出现。
-                             // 我们简单地认为用户想置顶。
-                             const targetIndex = pinnedCount; // 放到所有置顶项的后面
+                             const targetIndex = pinnedCount; 
                              updatePinOrder(parentPath, dragSource.key, dragSource.isCategory, dragSource.type, targetIndex);
                              refreshMenu(container); 
                         }
                     };
-                    
                     container.appendChild(sep);
                     return;
                 }
@@ -715,20 +749,9 @@ app.registerExtension({
                 const itemDiv = document.createElement("div");
                 itemDiv.className = "add-node-menu-item"; 
                 
-                // 构造 Quick 对象
                 const quickObj = itemData._isCategory
-                    ? { 
-                        title: key, 
-                        type: "CATEGORY", 
-                        isCategory: true,
-                        category: (parentPath === "root" ? key : parentPath + "/" + key)
-                      }
-                    : { 
-                        title: itemData.title, 
-                        type: itemData.type, // 确保有 type
-                        isCategory: false,
-                        category: itemData.category 
-                      };
+                    ? { title: key, type: "CATEGORY", isCategory: true, category: (parentPath === "root" ? key : parentPath + "/" + key) }
+                    : { title: itemData.title, type: itemData.type, isCategory: false, category: itemData.category };
                 
                 const isItemPinned = isPinned(parentPath, key, itemData._isCategory, itemData.type);
                 const isItemMarked = isQuick(quickObj); 
@@ -756,7 +779,6 @@ app.registerExtension({
 
                 itemDiv.draggable = true;
                 itemDiv.ondragstart = (e) => {
-                    // 记录拖拽源的重要信息：key, type, 是否置顶
                     let currentPinIndex = -1;
                     if (isItemPinned) {
                          if (!itemData._isCategory && itemData.type) {
@@ -767,8 +789,8 @@ app.registerExtension({
                     }
 
                     dragSource = {
-                        key: key, // 显示名
-                        type: itemData.type, // 类名 (关键)
+                        key: key, 
+                        type: itemData.type, 
                         isCategory: itemData._isCategory,
                         parentPath: parentPath,
                         isPinned: isItemPinned,
@@ -787,23 +809,15 @@ app.registerExtension({
                 itemDiv.ondragover = (e) => {
                     if (!dragSource || dragSource.parentPath !== parentPath) return;
                     e.preventDefault(); 
-
                     const rect = itemDiv.getBoundingClientRect();
                     const offsetY = e.clientY - rect.top;
                     const isTopHalf = offsetY < rect.height / 2;
-
                     itemDiv.classList.remove("drag-over-top", "drag-over-bottom", "drag-over-unpin");
-
                     if (isItemPinned) {
-                        // 目标是置顶项：我们在调整顺序
                         if (isTopHalf) itemDiv.classList.add("drag-over-top");
                         else itemDiv.classList.add("drag-over-bottom");
                     } else {
-                        // 目标是非置顶项：
-                        if (dragSource.isPinned) {
-                            // 源是置顶项 -> 意图是取消置顶
-                            itemDiv.classList.add("drag-over-unpin");
-                        }
+                        if (dragSource.isPinned) itemDiv.classList.add("drag-over-unpin");
                     }
                 };
 
@@ -820,25 +834,17 @@ app.registerExtension({
                     const isTopHalf = offsetY < rect.height / 2;
 
                     if (isItemPinned) {
-                        // 目标是置顶项：我们在置顶区内排序
                         let targetPinIndex = -1;
                         if (!itemData._isCategory && itemData.type) {
                             targetPinIndex = getGlobalNodePinnedList().indexOf(itemData.type);
                         } else {
                             targetPinIndex = getLocalPinnedList(parentPath).indexOf(key);
                         }
-
                         if (!isTopHalf) targetPinIndex += 1; 
-                        
-                        // 注意：我们只允许同类型的排序互相影响 (节点 vs 节点)，否则逻辑太复杂
-                        // 但 updatePinOrder 内部已经做了区分
                         updatePinOrder(parentPath, dragSource.key, dragSource.isCategory, dragSource.type, targetPinIndex);
                         refreshMenu(container); 
-                    } 
-                    else {
-                        // 目标是普通项
+                    } else {
                         if (dragSource.isPinned) {
-                            // 取消置顶
                             removePin(parentPath, dragSource.key, dragSource.isCategory, dragSource.type);
                             refreshMenu(container); 
                         } 
@@ -852,7 +858,10 @@ app.registerExtension({
                         const siblings = container.querySelectorAll('.add-node-menu-item'); 
                         siblings.forEach(s => s.classList.remove('active'));
                         itemDiv.classList.add('active');
+                        
                         if (hoverTimer) clearTimeout(hoverTimer);
+                        const delay = app.ui.settings.getSettingValue("AddNodeMenu.HoverDelay", 40);
+                        
                         hoverTimer = setTimeout(() => {
                             closeLevelsAfter(levelIndex); 
                             closeContextMenu();
@@ -865,7 +874,7 @@ app.registerExtension({
                             if (subRect.right > window.innerWidth) subMenuEl.style.left = (rect.left - subRect.width + 1) + "px";
                             if (subRect.height > window.innerHeight) subMenuEl.style.top = "10px";
                             else if (subRect.bottom > window.innerHeight) subMenuEl.style.top = Math.max(0, window.innerHeight - subRect.height - 10) + "px";
-                        }, 40); 
+                        }, delay); 
                     };
                     itemDiv.addEventListener("mouseenter", activateSubmenu);
                     itemDiv.addEventListener("click", (e) => { e.stopPropagation(); activateSubmenu(); });
@@ -879,7 +888,8 @@ app.registerExtension({
                         siblings.forEach(s => s.classList.remove('active'));
                         itemDiv.classList.add('active');
                         if (hoverTimer) clearTimeout(hoverTimer);
-                        hoverTimer = setTimeout(() => { closeLevelsAfter(levelIndex); }, 40);
+                        const delay = app.ui.settings.getSettingValue("AddNodeMenu.HoverDelay", 40);
+                        hoverTimer = setTimeout(() => { closeLevelsAfter(levelIndex); }, delay);
                     });
                 }
                 itemDiv.addEventListener("contextmenu", (e) => {
@@ -893,10 +903,32 @@ app.registerExtension({
             const container = document.createElement("div");
             container.className = "add-node-menu-container"; 
             
-            // 存储参数以便刷新
-            container._menuArgs = { structure, levelIndex, parentPath };
+            // --- 应用设置样式 ---
+            const opacity = app.ui.settings.getSettingValue("AddNodeMenu.Opacity", 0.98);
+            const fontSize = app.ui.settings.getSettingValue("AddNodeMenu.FontSize", 12.5);
+            const maxWidth = app.ui.settings.getSettingValue("AddNodeMenu.MaxWidth", 400);
+
+            // 新增设置项读取
+            const enableBlur = app.ui.settings.getSettingValue("AddNodeMenu.EnableBlur", true);
+            const hoverColorRaw = app.ui.settings.getSettingValue("AddNodeMenu.ColorHover", "#2a60a8");
+            const markColorRaw = app.ui.settings.getSettingValue("AddNodeMenu.ColorMark", "#2ecc71");
+
+            const validHover = normalizeColor(hoverColorRaw) || "#2a60a8";
+            const validMark = normalizeColor(markColorRaw) || "#2ecc71";
+            const markBg = hexToRgba(validMark, 0.05);
+
+            container.style.background = `rgba(30, 30, 30, ${opacity})`;
+            container.style.fontSize = `${fontSize}px`;
+            container.style.maxWidth = `${maxWidth}px`;
             
-            // 初始渲染
+            // 设置 CSS 变量
+            container.style.setProperty('--anm-blur', enableBlur ? 'blur(8px)' : 'none');
+            container.style.setProperty('--anm-hover-bg', validHover);
+            container.style.setProperty('--anm-mark-color', validMark);
+            container.style.setProperty('--anm-mark-bg', markBg);
+            // ------------------------------------
+
+            container._menuArgs = { structure, levelIndex, parentPath };
             renderMenuContent(container, structure, levelIndex, parentPath);
 
             container.style.left = `${x}px`;
@@ -923,9 +955,21 @@ app.registerExtension({
         }
 
         function initMenu() {
+            const enabled = app.ui.settings.getSettingValue("AddNodeMenu.Enabled", true);
+            if (!enabled) return;
+
+            // --- 修改：立即获取当前鼠标位置 ---
+            // 每次调用 initMenu 时，更新 lockedCanvasPos 为当前画布的鼠标位置
+            // 这样无论是快捷键触发还是外部调用，节点都会生成在鼠标当前所在位置
+            if (app.canvas && app.canvas.graph_mouse) {
+                lockedCanvasPos.x = app.canvas.graph_mouse[0];
+                lockedCanvasPos.y = app.canvas.graph_mouse[1];
+            }
+
             closeAll(); 
             fetchData();
 
+            // 菜单UI显示位置 (屏幕坐标)
             const screenX = globalMouse.x;
             const screenY = globalMouse.y;
 
@@ -936,15 +980,20 @@ app.registerExtension({
             overlay.addEventListener("contextmenu", (e) => { e.preventDefault(); closeAll(); });
             document.body.appendChild(overlay);
 
+            // 此时获取设置并过滤节点树
             const tree = buildNodeTree();
             const rootMenu = showMenu(tree, 0, 0, 0, "root"); 
 
-            const lastCategory = cachedData.last_category;
+            const shouldRemember = app.ui.settings.getSettingValue("AddNodeMenu.RememberLast", true);
+            const lastCategory = shouldRemember ? cachedData.last_category : null;
+
             let targetOffsetY = 0;
             let targetOffsetX = 0;
             const rect = rootMenu.getBoundingClientRect();
             let targetEl = null;
-            if (lastCategory) targetEl = rootMenu.querySelector(`.add-node-menu-item[data-key="${lastCategory}"]`); 
+            if (lastCategory) {
+                targetEl = rootMenu.querySelector(`.add-node-menu-item[data-key="${lastCategory}"]`); 
+            }
 
             if (targetEl) {
                 targetOffsetY = targetEl.offsetTop + (targetEl.offsetHeight / 2);
@@ -976,24 +1025,23 @@ app.registerExtension({
         }
 
         fetchData();
+        
+        // --- 修改：暴露全局变量 ---
+        window.alignLayout_openAddNodeMenu = initMenu;
 
         window.addEventListener("keydown", function(e) {
-            if (e.key.toLowerCase() === "a") {
+            const shortcutSetting = app.ui.settings.getSettingValue("AddNodeMenu.Shortcut", "A");
+            
+            if (matchShortcut(e, shortcutSetting)) {
                 const target = e.target;
                 if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
-                if (e.ctrlKey || e.altKey || e.metaKey || e.shiftKey) return;
                 
-                // --- 新增互斥逻辑 ---
-                // 检查 Quick Node Menu 的遮罩层是否存在，如果存在则模拟点击关闭它
-                // 修改：匹配 quick_node_menu.js 中定义的类名 .quick-menu-overlay
                 const quickOverlay = document.querySelector(".quick-menu-overlay");
                 if (quickOverlay) {
                     quickOverlay.click();
                 }
-                // ------------------
 
-                lockedCanvasPos.x = app.canvas.graph_mouse[0];
-                lockedCanvasPos.y = app.canvas.graph_mouse[1];
+                // 修改：不再需要手动赋值 lockedCanvasPos，直接调用 initMenu 即可
                 initMenu();
             }
             if (e.key === "Escape") closeAll();

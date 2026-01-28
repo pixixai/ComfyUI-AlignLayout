@@ -1,0 +1,505 @@
+{
+    "FastLink_Enabled": {
+        "name": "启用 Fast Link 插件",
+        "tooltip": "全局开关，启用或禁用 Fast Link 的所有功能。"
+    },
+    "FastLink_Shortcut": {
+        "name": "全局快捷键",
+        "tooltip": "触发 Fast Link 功能的主按键（不区分大小写，例如输入 F 或 J）。"
+    },
+    "FastLink_VerticalThreshold": {
+        "name": "垂直堆叠判定阈值",
+        "tooltip": "判定两个节点是否在“同一列”所需的水平重叠比例 (0.0 - 1.0)。值越大，对齐要求越严格。"
+    },
+    "FastLink_ResetTimeout": {
+        "name": "模式重置超时 (ms)",
+        "tooltip": "多次按键切换接口/节点功能的超时时间。超时后再次按键将视为新的操作。"
+    },
+    "FastLink_MatchStrategy": {
+        "name": "端口匹配优先级",
+        "tooltip": "决定连接时如何选择最佳端口。'严格'模式要求名称和类型都匹配，'宽松'模式仅要求类型匹配。",
+        "options": {
+            "Name + Type (Strict)": "名称 + 类型 (严格)",
+            "Type Only (Loose)": "仅类型 (宽松)"
+        }
+    },
+
+
+
+    "AlignLayout_ReplaceNode_Enabled": {
+        "name": "启用替换节点",
+        "tooltip": "是否启用“替换节点”功能。"
+    },
+    "AlignLayout_ReplaceNode_Shortcut": {
+        "name": "快捷键 (替换节点)",
+        "tooltip": "自定义快捷键 (例如: Shift+R)。"
+    },
+    "AlignLayout_ReplaceNode_ForceConnect": {
+        "name": "强制顺序连接",
+        "tooltip": "当端口名称和类型都不匹配时，是否按顺序强制连接（推荐开启，方便快速替换后手动调整）。"
+    },
+    "AlignLayout_ReplaceNode_MenuTrigger": {
+        "name": "自动打开菜单",
+        "tooltip": "进入替换模式后，自动弹出的菜单类型。",
+        "options": {
+        "None": "无 (None)",
+        "Search Box (Default)": "搜索框 (原生)",
+        "Add Node Menu (All)": "添加节点菜单 (全部)",
+        "Quick Node Menu (Favorites)": "快捷节点菜单 (收藏)"
+        }
+    },
+    "AlignLayout_ReplaceNode_BorderColor": {
+        "name": "高亮边框颜色",
+        "tooltip": "替换模式下的高亮颜色 (例如 #FFFF00)。"
+    },
+    "AlignLayout_ReplaceNode_Opacity": {
+        "name": "高亮填充透明度",
+        "tooltip": "替换模式下高亮区域的透明度 (0.0 - 1.0)。"
+    },
+    "AlignLayout_ReplaceNode_GlowStrength": {
+        "name": "高亮发光强度",
+        "tooltip": "替换模式下高亮区域的边缘模糊/发光半径。"
+    },
+    "AlignLayout_ReplaceNode_StrokeWidth": {
+        "name": "高亮描边粗细",
+        "tooltip": "替换模式下高亮边框的线条粗细。"
+    },
+
+
+
+    "AlignLayout_SelectSame_Enabled": {
+        "name": "启用选中相同节点",
+        "tooltip": "是否启用“选择相同节点”功能。"
+    },
+    "AlignLayout_SelectSame_Shortcut": {
+        "name": "快捷键",
+        "tooltip": "自定义快捷键 (例如: Shift+A, Ctrl+Alt+S)。"
+    },
+
+
+
+    "AutoLayout_Enabled": {
+        "name": "启用自动布局",
+        "tooltip": "开启或关闭快捷键触发自动布局功能"
+    },
+    "AutoLayout_Direction": {
+        "name": "布局方向",
+        "tooltip": "选择节点排列的主方向：逆向模式会保持右侧输出端对齐",
+        "options": {
+            "Right-to-Left (Reverse)": "从右向左 (逆向 - 推荐)",
+            "Left-to-Right (Standard)": "从左向右 (正向)"
+        }
+    },
+    "AutoLayout_IslandDirection": {
+        "name": "孤岛排列方向",
+        "tooltip": "当画布上有多个互不关联的节点组时，它们的排列方式",
+        "options": {
+            "Vertical (Top to Bottom)": "垂直排列 (从上到下)",
+            "Horizontal (Side by Side)": "水平排列 (并排显示)"
+        }
+    },
+    "AutoLayout_IslandGap": {
+        "name": "孤岛间距",
+        "tooltip": "不同节点组之间的最小距离"
+    },
+    "AutoLayout_HorizontalGap": {
+        "name": "水平间距",
+        "tooltip": "列与列之间的像素距离"
+    },
+    "AutoLayout_VerticalGap": {
+        "name": "垂直间距",
+        "tooltip": "同一列中节点之间的垂直距离"
+    },
+    "AutoLayout_Shortcut": {
+        "name": "快捷键",
+        "tooltip": "触发自动布局的组合键，格式如：Alt+L"
+    },
+
+
+
+    "NodeAligner_Enabled": {
+        "name": "启用节点对齐",
+        "tooltip": "开启或关闭节点对齐插件功能"
+    },
+    "NodeAligner_Shortcut": {
+        "name": "快捷键",
+        "tooltip": "触发对齐菜单的组合键 (例如: Alt+A, Ctrl+Q)"
+    },
+    "NodeAligner_Radius": {
+        "name": "菜单半径",
+        "tooltip": "环形菜单的大小 (半径)"
+    },
+    "NodeAligner_FlickDistance": {
+        "name": "甩动触发距离",
+        "tooltip": "鼠标必须移动多少像素才能触发甩动手势"
+    },
+    "NodeAligner_FlickSpeed": {
+        "name": "甩动速度阈值",
+        "tooltip": "值越大，需要越快的移动速度才能触发手势"
+    },
+    "NodeAligner_DefaultGap_H": {
+        "name": "默认水平间距",
+        "tooltip": "使用水平分布间距功能时的默认数值 (像素)"
+    },
+    "NodeAligner_DefaultGap_V": {
+        "name": "默认垂直间距",
+        "tooltip": "使用垂直分布间距功能时的默认数值 (像素)"
+    },
+    "NodeAligner_Btn_Top": {
+        "name": "环形菜单 - 上方",
+        "tooltip": "上方位置 (12点方向) 的按钮功能",
+        "options": {
+            "Align Top": "上对齐",
+            "Align Bottom": "下对齐",
+            "Align Left": "左对齐",
+            "Align Right": "右对齐",
+            "Center Vertically": "垂直居中",
+            "Center Horizontally": "水平居中",
+            "Distribute Vertically": "垂直平均分布",
+            "Distribute Horizontally": "水平平均分布",
+            "Stack Vertically": "垂直分布间距",
+            "Stack Horizontally": "水平分布间距",
+            "Auto Layout": "自动布局"
+        }
+    },
+    "NodeAligner_Btn_TopRight": {
+        "name": "环形菜单 - 右上",
+        "tooltip": "右上位置的按钮功能",
+        "options": {
+            "Align Top": "上对齐",
+            "Align Bottom": "下对齐",
+            "Align Left": "左对齐",
+            "Align Right": "右对齐",
+            "Center Vertically": "垂直居中",
+            "Center Horizontally": "水平居中",
+            "Distribute Vertically": "垂直平均分布",
+            "Distribute Horizontally": "水平平均分布",
+            "Stack Vertically": "垂直分布间距",
+            "Stack Horizontally": "水平分布间距",
+            "Auto Layout": "自动布局"
+        }
+    },
+    "NodeAligner_Btn_Right": {
+        "name": "环形菜单 - 右方",
+        "tooltip": "右方位置 (3点方向) 的按钮功能",
+        "options": {
+            "Align Top": "上对齐",
+            "Align Bottom": "下对齐",
+            "Align Left": "左对齐",
+            "Align Right": "右对齐",
+            "Center Vertically": "垂直居中",
+            "Center Horizontally": "水平居中",
+            "Distribute Vertically": "垂直平均分布",
+            "Distribute Horizontally": "水平平均分布",
+            "Stack Vertically": "垂直分布间距",
+            "Stack Horizontally": "水平分布间距",
+            "Auto Layout": "自动布局"
+        }
+    },
+    "NodeAligner_Btn_BottomRight": {
+        "name": "环形菜单 - 右下",
+        "tooltip": "右下位置的按钮功能",
+        "options": {
+            "Align Top": "上对齐",
+            "Align Bottom": "下对齐",
+            "Align Left": "左对齐",
+            "Align Right": "右对齐",
+            "Center Vertically": "垂直居中",
+            "Center Horizontally": "水平居中",
+            "Distribute Vertically": "垂直平均分布",
+            "Distribute Horizontally": "水平平均分布",
+            "Stack Vertically": "垂直分布间距",
+            "Stack Horizontally": "水平分布间距",
+            "Auto Layout": "自动布局"
+        }
+    },
+    "NodeAligner_Btn_Bottom": {
+        "name": "环形菜单 - 下方",
+        "tooltip": "下方位置 (6点方向) 的按钮功能",
+        "options": {
+            "Align Top": "上对齐",
+            "Align Bottom": "下对齐",
+            "Align Left": "左对齐",
+            "Align Right": "右对齐",
+            "Center Vertically": "垂直居中",
+            "Center Horizontally": "水平居中",
+            "Distribute Vertically": "垂直平均分布",
+            "Distribute Horizontally": "水平平均分布",
+            "Stack Vertically": "垂直分布间距",
+            "Stack Horizontally": "水平分布间距",
+            "Auto Layout": "自动布局"
+        }
+    },
+    "NodeAligner_Btn_BottomLeft": {
+        "name": "环形菜单 - 左下",
+        "tooltip": "左下位置的按钮功能",
+        "options": {
+            "Align Top": "上对齐",
+            "Align Bottom": "下对齐",
+            "Align Left": "左对齐",
+            "Align Right": "右对齐",
+            "Center Vertically": "垂直居中",
+            "Center Horizontally": "水平居中",
+            "Distribute Vertically": "垂直平均分布",
+            "Distribute Horizontally": "水平平均分布",
+            "Stack Vertically": "垂直分布间距",
+            "Stack Horizontally": "水平分布间距",
+            "Auto Layout": "自动布局"
+        }
+    },
+    "NodeAligner_Btn_Left": {
+        "name": "环形菜单 - 左方",
+        "tooltip": "左方位置 (9点方向) 的按钮功能",
+        "options": {
+            "Align Top": "上对齐",
+            "Align Bottom": "下对齐",
+            "Align Left": "左对齐",
+            "Align Right": "右对齐",
+            "Center Vertically": "垂直居中",
+            "Center Horizontally": "水平居中",
+            "Distribute Vertically": "垂直平均分布",
+            "Distribute Horizontally": "水平平均分布",
+            "Stack Vertically": "垂直分布间距",
+            "Stack Horizontally": "水平分布间距",
+            "Auto Layout": "自动布局"
+        }
+    },
+    "NodeAligner_Btn_TopLeft": {
+        "name": "环形菜单 - 左上",
+        "tooltip": "左上位置的按钮功能",
+        "options": {
+            "Align Top": "上对齐",
+            "Align Bottom": "下对齐",
+            "Align Left": "左对齐",
+            "Align Right": "右对齐",
+            "Center Vertically": "垂直居中",
+            "Center Horizontally": "水平居中",
+            "Distribute Vertically": "垂直平均分布",
+            "Distribute Horizontally": "水平平均分布",
+            "Stack Vertically": "垂直分布间距",
+            "Stack Horizontally": "水平分布间距",
+            "Auto Layout": "自动布局"
+        }
+    },
+    "NodeResizer_Enabled": {
+        "name": "启用节点拉伸",
+        "tooltip": "开启或关闭节点拉伸插件功能"
+    },
+    "NodeResizer_Shortcut": {
+        "name": "快捷键",
+        "tooltip": "触发拉伸菜单的组合键 (例如: Alt+S)"
+    },
+    "NodeResizer_Radius": {
+        "name": "菜单半径",
+        "tooltip": "环形菜单的大小 (半径)"
+    },
+    "NodeResizer_FlickDistance": {
+        "name": "甩动触发距离",
+        "tooltip": "鼠标必须移动多少像素才能触发甩动手势"
+    },
+    "NodeResizer_FlickSpeed": {
+        "name": "甩动速度阈值",
+        "tooltip": "值越大，需要越快的移动速度才能触发手势"
+    },
+    "NodeResizer_Btn_Top": {
+        "name": "环形菜单 - 上方",
+        "tooltip": "上方位置 (12点方向) 的按钮功能",
+        "options": {
+            "Stretch Top": "顶部拉伸",
+            "Stretch Bottom": "底部拉伸",
+            "Stretch Left": "左侧拉伸",
+            "Stretch Right": "右侧拉伸",
+            "Stretch H-Max": "水平两侧拉伸",
+            "Stretch V-Max": "垂直两侧拉伸",
+            "Default Size (320px)": "默认尺寸 (320px)",
+            "Min Size": "最小尺寸"
+        }
+    },
+    "NodeResizer_Btn_TopRight": {
+        "name": "环形菜单 - 右上",
+        "tooltip": "右上位置的按钮功能",
+        "options": {
+            "Stretch Top": "顶部拉伸",
+            "Stretch Bottom": "底部拉伸",
+            "Stretch Left": "左侧拉伸",
+            "Stretch Right": "右侧拉伸",
+            "Stretch H-Max": "水平两侧拉伸",
+            "Stretch V-Max": "垂直两侧拉伸",
+            "Default Size (320px)": "默认尺寸 (320px)",
+            "Min Size": "最小尺寸"
+        }
+    },
+    "NodeResizer_Btn_Right": {
+        "name": "环形菜单 - 右方",
+        "tooltip": "右方位置 (3点方向) 的按钮功能",
+        "options": {
+            "Stretch Top": "顶部拉伸",
+            "Stretch Bottom": "底部拉伸",
+            "Stretch Left": "左侧拉伸",
+            "Stretch Right": "右侧拉伸",
+            "Stretch H-Max": "水平两侧拉伸",
+            "Stretch V-Max": "垂直两侧拉伸",
+            "Default Size (320px)": "默认尺寸 (320px)",
+            "Min Size": "最小尺寸"
+        }
+    },
+    "NodeResizer_Btn_BottomRight": {
+        "name": "环形菜单 - 右下",
+        "tooltip": "右下位置的按钮功能",
+        "options": {
+            "Stretch Top": "顶部拉伸",
+            "Stretch Bottom": "底部拉伸",
+            "Stretch Left": "左侧拉伸",
+            "Stretch Right": "右侧拉伸",
+            "Stretch H-Max": "水平两侧拉伸",
+            "Stretch V-Max": "垂直两侧拉伸",
+            "Default Size (320px)": "默认尺寸 (320px)",
+            "Min Size": "最小尺寸"
+        }
+    },
+    "NodeResizer_Btn_Bottom": {
+        "name": "环形菜单 - 下方",
+        "tooltip": "下方位置 (6点方向) 的按钮功能",
+        "options": {
+            "Stretch Top": "顶部拉伸",
+            "Stretch Bottom": "底部拉伸",
+            "Stretch Left": "左侧拉伸",
+            "Stretch Right": "右侧拉伸",
+            "Stretch H-Max": "水平两侧拉伸",
+            "Stretch V-Max": "垂直两侧拉伸",
+            "Default Size (320px)": "默认尺寸 (320px)",
+            "Min Size": "最小尺寸"
+        }
+    },
+    "NodeResizer_Btn_BottomLeft": {
+        "name": "环形菜单 - 左下",
+        "tooltip": "左下位置的按钮功能",
+        "options": {
+            "Stretch Top": "顶部拉伸",
+            "Stretch Bottom": "底部拉伸",
+            "Stretch Left": "左侧拉伸",
+            "Stretch Right": "右侧拉伸",
+            "Stretch H-Max": "水平两侧拉伸",
+            "Stretch V-Max": "垂直两侧拉伸",
+            "Default Size (320px)": "默认尺寸 (320px)",
+            "Min Size": "最小尺寸"
+        }
+    },
+    "NodeResizer_Btn_Left": {
+        "name": "环形菜单 - 左方",
+        "tooltip": "左方位置 (9点方向) 的按钮功能",
+        "options": {
+            "Stretch Top": "顶部拉伸",
+            "Stretch Bottom": "底部拉伸",
+            "Stretch Left": "左侧拉伸",
+            "Stretch Right": "右侧拉伸",
+            "Stretch H-Max": "水平两侧拉伸",
+            "Stretch V-Max": "垂直两侧拉伸",
+            "Default Size (320px)": "默认尺寸 (320px)",
+            "Min Size": "最小尺寸"
+        }
+    },
+    "NodeResizer_Btn_TopLeft": {
+        "name": "环形菜单 - 左上",
+        "tooltip": "左上位置的按钮功能",
+        "options": {
+            "Stretch Top": "顶部拉伸",
+            "Stretch Bottom": "底部拉伸",
+            "Stretch Left": "左侧拉伸",
+            "Stretch Right": "右侧拉伸",
+            "Stretch H-Max": "水平两侧拉伸",
+            "Stretch V-Max": "垂直两侧拉伸",
+            "Default Size (320px)": "默认尺寸 (320px)",
+            "Min Size": "最小尺寸"
+        }
+    },
+
+
+    "AddNodeMenu_Enabled": {
+        "name": "启用添加节点菜单",
+        "tooltip": "开启或关闭自定义添加节点菜单功能。"
+    },
+    "AddNodeMenu_Shortcut": {
+        "name": "呼出快捷键",
+        "tooltip": "自定义打开菜单的按键或组合键（例如：A, Alt+A）。"
+    },
+    "AddNodeMenu_HoverDelay": {
+        "name": "子菜单展开延迟",
+        "tooltip": "鼠标悬停多少毫秒后自动展开子菜单。"
+    },
+    "AddNodeMenu_FontSize": {
+        "name": "菜单字体大小",
+        "tooltip": "调整菜单项的字体显示大小（像素）。"
+    },
+    "AddNodeMenu_MaxWidth": {
+        "name": "菜单最大宽度",
+        "tooltip": "限制菜单显示的最大宽度（像素）。"
+    },
+    "AddNodeMenu_Opacity": {
+        "name": "菜单透明度",
+        "tooltip": "调整菜单背景的不透明度。"
+    },
+    "AddNodeMenu_EnableBlur": {
+        "name": "启用毛玻璃效果",
+        "tooltip": "开启背景模糊效果（如果卡顿建议关闭）。"
+    },
+    "AddNodeMenu_ColorHover": {
+        "name": "悬停高亮颜色",
+        "tooltip": "鼠标指向菜单项时的背景颜色（支持 #RRGGBB 等格式）。"
+    },
+    "AddNodeMenu_ColorMark": {
+        "name": "收藏标记颜色",
+        "tooltip": "已收藏项目的左侧标记颜色（支持 #RRGGBB 等格式）。"
+    },
+    "AddNodeMenu_PrimaryCategories": {
+        "name": "首选分类列表",
+        "tooltip": "输入以逗号分隔的分类名称，这些分类将置顶显示在根菜单中。"
+    },
+    "AddNodeMenu_ExcludeList": {
+        "name": "排除列表 (过滤)",
+        "tooltip": "输入以逗号分隔的关键词，包含这些词的分类或节点将被隐藏。"
+    },
+    "AddNodeMenu_RememberLast": {
+        "name": "记住上次分类",
+        "tooltip": "重新打开菜单时，自动定位到上次打开的文件夹位置。"
+    },
+
+
+
+    "QuickNodeMenu_Enabled": {
+        "name": "启用快捷节点菜单",
+        "tooltip": "开启或关闭自定义快捷节点菜单（收藏）功能。"
+    },
+    "QuickNodeMenu_Shortcut": {
+        "name": "呼出快捷键 (收藏)",
+        "tooltip": "自定义打开收藏菜单的按键或组合键（例如：Q, Alt+Q）。"
+    },
+    "QuickNodeMenu_HoverDelay": {
+        "name": "子菜单展开延迟 (收藏)",
+        "tooltip": "收藏菜单中鼠标悬停多少毫秒后自动展开子菜单。"
+    },
+    "QuickNodeMenu_FontSize": {
+        "name": "菜单字体大小 (收藏)",
+        "tooltip": "调整收藏菜单项的字体显示大小（像素）。"
+    },
+    "QuickNodeMenu_MaxWidth": {
+        "name": "菜单最大宽度 (收藏)",
+        "tooltip": "限制收藏菜单显示的最大宽度（像素）。"
+    },
+    "QuickNodeMenu_Opacity": {
+        "name": "菜单透明度 (收藏)",
+        "tooltip": "调整收藏菜单背景的不透明度。"
+    },
+    "QuickNodeMenu_EnableBlur": {
+        "name": "启用毛玻璃效果 (收藏)",
+        "tooltip": "开启收藏菜单背景模糊效果（如果卡顿建议关闭）。"
+    },
+    "QuickNodeMenu_ColorHover": {
+        "name": "悬停高亮颜色 (收藏)",
+        "tooltip": "收藏菜单中鼠标指向菜单项时的背景颜色（支持 #RRGGBB 等格式）。"
+    },
+    "QuickNodeMenu_RememberLast": {
+        "name": "记住上次分类 (收藏)",
+        "tooltip": "重新打开收藏菜单时，自动定位到上次打开的文件夹位置。"
+    }
+}
