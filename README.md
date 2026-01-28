@@ -15,10 +15,10 @@
 
 - **点击触发**：像传统菜单一样，移动鼠标点击按钮即可执行操作。
   
-  ![alt text](../../images/点击触发.gif)
+  ![alt text](docs/modules/../../images/点击触发.gif)
 - **甩动触发 (Mouse Flick)**：按下快捷键后**不松开鼠标**，快速向圆环上按钮的方向“甩”动一段距离，即可瞬间触发功能并关闭面板。这是肌肉记忆形成后的最高效操作方式！
   
-  ![alt text](../../images/甩动触发.gif)
+  ![alt text](docs/modules/../../images/甩动触发.gif)
 
 ### 智能交互设计
 
@@ -35,7 +35,7 @@
 
 环形菜单包含 8 个方向，涵盖了最常用的对齐与分布功能。
 
-![alt text](../../images/对齐面板.png)
+![alt text](docs/modules/../../images/对齐面板.png)
 
 ### 基础对齐 (十字方向)
 
@@ -121,7 +121,7 @@
 环形菜单包含 8 个方向，涵盖了最常用的尺寸调整功能。
 *注意：所有按钮的功能都可以在设置中完全自定义。以下介绍基于默认配置。*
 
-![alt text](../../images/拉伸面板.png)
+![alt text](docs/modules/../../images/拉伸面板.png)
 
 ### 1. 单侧拉伸 (Edge Stretch)
 
@@ -173,7 +173,7 @@
 
 **Auto Layout** 是一个轻量级但功能强大的 ComfyUI 扩展插件，旨在通过智能算法一键自动整理和排列您的工作流节点，让乱糟糟的画布瞬间变得井井有条。
 
-![alt text](../../images/自动布局.gif)
+![alt text](docs/modules/../../images/自动布局.gif)
 
 ## ✨ 主要功能 (Features)
 
@@ -244,7 +244,7 @@ MIT License
 
 这是一个为 ComfyUI 设计的高效节点添加工具。它提供了一个跟随鼠标的级联菜单，支持快捷键唤出、智能记忆位置、拖拽置顶和节点收藏功能，旨在极大地提升工作流搭建速度。
 
-![alt text](../../images/添加节点菜单.gif)
+![alt text](docs/modules/../../images/添加节点菜单.gif)
 
 ## ✨ 核心特性
 
@@ -340,7 +340,7 @@ A: 不完全是。置顶是“层级内”的。
 
 这是一个为 ComfyUI 设计的**高频节点极速访问工具**。它与 "Add Node Menu" 完美配合，专门用于展示你**收藏 (Favorite)** 的节点和分组，通过精简的列表让你专注于核心工作流。
 
-![alt text](../../images/收藏节点菜单.gif)
+![alt text](docs/modules/../../images/收藏节点菜单.gif)
 
 ## ✨ 核心特性
 
@@ -415,7 +415,7 @@ A: Quick Menu 依赖 `add_node_menu_quick.json` 数据文件。虽然理论上�
 
 **ComfyUI Fast Link** 是一个旨在提升节点连接效率的纯前端插件。它通过智能的空间排序算法和快捷键逻辑，帮助用户实现极速的多对一、一对多、链式连接以及端口切换等操作。
 
-![alt text](../../images/快速连接.gif)
+![alt text](docs/modules/../../images/快速连接.gif)
 
 ## 🎹 快捷键速查表
 
@@ -485,7 +485,7 @@ A: Quick Menu 依赖 `add_node_menu_quick.json` 数据文件。虽然理论上�
 
 **替换节点** 是一个强大的工作流编辑工具，它允许你以“热替换”的方式，将旧节点替换为任意新节点，同时**自动保留并迁移原有的输入、输出连线以及参数值**。
 
-![alt text](../../images/替换节点.gif)
+![alt text](docs/modules/../../images/替换节点.gif)
 
 该功能采用独特的“交互模式”设计，并支持自动呼出搜索面板，极大地提升了编辑效率。
 
@@ -577,7 +577,7 @@ A: Quick Menu 依赖 `add_node_menu_quick.json` 数据文件。虽然理论上�
 
 **选择相同节点** 是一个高效的辅助功能，允许用户一键选中画布上所有与当前选中节点类型一致的节点。这在整理大型工作流、批量修改参数或批量移动同类节点时非常有用。
 
-![alt text](../../images/选择相同节点.gif)
+![alt text](docs/modules/../../images/选择相同节点.gif)
 
 ## 🎮 操作方法
 
