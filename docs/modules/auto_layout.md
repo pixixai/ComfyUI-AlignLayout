@@ -1,10 +1,10 @@
-# Auto Layout
+## 自动布局 (Auto Layout)
 
-**Auto Layout** 是一个轻量级但功能强大的 ComfyUI 扩展插件，旨在通过智能算法一键自动整理和排列您的工作流节点，让乱糟糟的画布瞬间变得井井有条。
+**Auto Layout** 通过智能算法一键自动整理和排列您的工作流节点，让乱糟糟的画布瞬间变得井井有条。
 
 ![alt text](../../images/自动布局.gif)
 
-## ✨ 主要功能 (Features)
+### ✨ 主要功能 (Features)
 
 - **智能流式布局 (Smart Flow Layout)**
     - **独立流分组**：自动识别互不相关的节点组（连通分量），将它们分开计算和排列，互不干扰。
@@ -22,13 +22,13 @@
     - 支持自定义**快捷键**（默认为 `Alt+L`，支持组合键如 `Ctrl+Shift+K`）。
     - 原生集成到 ComfyUI 设置面板，支持多语言（中文/英文）。
 
-## 🚀 使用方法 (Usage)
+### 🚀 使用方法 (Usage)
 
-### 快捷键
+#### 快捷键
 
 默认快捷键为 **`Alt + L`**。
 
-### 操作演示
+#### 操作演示
 
 1. **整理选中的节点**：
     - 使用鼠标框选一部分乱序的节点。
@@ -42,11 +42,11 @@
 > 提示：该操作支持撤销！如果不满意自动排列的结果，请按下 Ctrl + Z 即可恢复原状。
 > 
 
-## ⚙️ 设置说明 (Configuration)
+### ⚙️ 设置说明 (Configuration)
 
 点击 ComfyUI 菜单栏的 **设置 (Settings)** 图标（齿轮），在左侧侧边栏找到 **"AlignLayout"** 选项卡。
 
-### Auto Layout (自动布局)
+#### Auto Layout (自动布局)
 
 - **Layout Direction (布局方向)**
     - **Right-to-Left (逆向 - 推荐)**：从右向左排列，适合大部分生图工作流。同一列节点向右对齐。
@@ -58,11 +58,3 @@
 - **Shortcut (快捷键)**
     - 自定义触发自动布局的组合键。
     - 格式示例：`Alt+L`、`Ctrl+Shift+K`。默认为 `Alt+L`。
-
-## 🤝 贡献 (Contributing)
-
-欢迎提交 Issues 和 Pull Requests 来改进布局算法或添加新功能！
-
-## 📄 许可证 (License)
-
-MIT License
