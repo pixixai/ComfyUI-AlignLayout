@@ -2,6 +2,8 @@
 
 节点对齐、节点拉伸、快捷菜单、收藏菜单、自动布局、选择相同、替换节点、快速连接
 
+<!-- TOC -->
+
 <!-- INCLUDE:docs/modules/align.md -->
 
 <!-- INCLUDE:docs/modules/stretch.md -->
