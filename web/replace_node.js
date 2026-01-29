@@ -4,9 +4,9 @@ import { app } from "../../scripts/app.js";
  * 插件: 替换节点 - 逻辑模块
  * 交互模式：选中节点 -> Shift+R 进入待替换状态 -> 添加任意新节点 -> 自动执行替换
  * * 修改记录：
- * - 修复了多选状态下搜索框可能飞出屏幕的问题。
- * - 修复了搜索框位置不跟随鼠标的问题。
- * - 修复了搜索框输入不稳定（自动关闭）的问题。
+ * - [修复] 支持在子图 (Group Node) 中使用：
+ * 1. 将 app.graph 替换为动态获取的 activeGraph (app.canvas.graph)。
+ * 2. onNodeAdded 监听器改为动态挂载到当前活动的 Graph 实例上。
  */
 app.registerExtension({
     name: "Comfy.AlignLayout.ReplaceNode.Logic",
@@ -15,11 +15,16 @@ app.registerExtension({
     pendingReplaceNodeIds: [],
     isProcessing: false, // 防止死循环的锁
     lastMousePos: { x: 0, y: 0 }, // 实时记录鼠标屏幕坐标
+    
+    // [新增] 用于存储当前正在操作的 Graph 实例（可能是主图，也可能是子图）
+    activeGraph: null,
+    // [新增] 用于备份原始的 onNodeAdded 回调
+    originalOnNodeAdded: null,
 
     async setup() {
         const self = this;
 
-        // 0. 全局追踪鼠标位置 (解决快捷键触发时无法获取鼠标坐标的问题)
+        // 0. 全局追踪鼠标位置
         window.addEventListener("mousemove", (e) => {
             self.lastMousePos.x = e.clientX;
             self.lastMousePos.y = e.clientY;
@@ -41,25 +46,9 @@ app.registerExtension({
             }
         });
 
-        // 2. 监听节点添加事件
-        const originalOnNodeAdded = app.graph.onNodeAdded;
-        app.graph.onNodeAdded = function(node) {
-            if (originalOnNodeAdded) {
-                originalOnNodeAdded.call(app.graph, node);
-            }
-
-            if (self.isProcessing) return;
-
-            if (self.pendingReplaceNodeIds.length > 0) {
-                if (self.pendingReplaceNodeIds.includes(node.id)) return;
-
-                console.log("[ReplaceNode] 检测到新节点添加，执行批量替换...");
-                
-                handleBatchReplace(node);
-                exitReplaceMode();
-            }
-        };
-
+        // [移除] 这里的静态 app.graph.onNodeAdded 监听器已被移除
+        // 改为在 enterReplaceMode 中动态挂载
+        
         function matchShortcut(event, shortcutStr) {
             if (!shortcutStr) return false;
             const parts = shortcutStr.split("+").map(s => s.trim().toLowerCase());
@@ -103,20 +92,15 @@ app.registerExtension({
         // 辅助：Hex 转 RGBA
         function hexToRgba(input, alpha) {
             if (!input) return input;
-            
             let hex = input.toString().trim();
             if (hex.startsWith("0x")) hex = hex.slice(2);
             else if (hex.startsWith("#")) hex = hex.slice(1);
-
             if (!/^[0-9A-Fa-f]{3}$|^[0-9A-Fa-f]{6}$/.test(hex)) return input;
-
             if (hex.length === 3) hex = hex.split('').map(char => char + char).join('');
-
             const bigint = parseInt(hex, 16);
             const r = (bigint >> 16) & 255;
             const g = (bigint >> 8) & 255;
             const b = bigint & 255;
-
             return `rgba(${r},${g},${b},${alpha})`;
         }
 
@@ -131,6 +115,23 @@ app.registerExtension({
         function enterReplaceMode(nodes) {
             self.pendingReplaceNodeIds = nodes.map(n => n.id);
             
+            // [新增] 锁定当前操作的 Graph 实例 (支持子图)
+            self.activeGraph = app.canvas.graph;
+
+            // [新增] 动态挂载 onNodeAdded 监听器到当前 Graph
+            // 这样无论是在主图还是子图，只要在这个图里添加节点，都会触发
+            if (self.activeGraph) {
+                self.originalOnNodeAdded = self.activeGraph.onNodeAdded;
+                self.activeGraph.onNodeAdded = function(node) {
+                    // 调用原始回调 (如果有)
+                    if (self.originalOnNodeAdded) {
+                        self.originalOnNodeAdded.call(self.activeGraph, node);
+                    }
+                    // 执行我们的逻辑
+                    handleNodeAdded(node);
+                };
+            }
+
             let borderColorSetting = app.ui.settings.getSettingValue("AlignLayout.ReplaceNode.BorderColor", "#FFFF00");
             const opacitySetting = app.ui.settings.getSettingValue("AlignLayout.ReplaceNode.Opacity", 0.15);
             const glowStrengthSetting = app.ui.settings.getSettingValue("AlignLayout.ReplaceNode.GlowStrength", 15);
@@ -203,27 +204,16 @@ app.registerExtension({
             const triggerMode = app.ui.settings.getSettingValue("AlignLayout.ReplaceNode.MenuTrigger", "SearchBox");
             
             if (triggerMode === "SearchBox") {
-                // 【修复逻辑】始终使用当前鼠标位置 (Screen Coordinates)
-                // 这样无论选中了哪个节点，搜索框都会出现在鼠标手边
-                
                 const screenX = self.lastMousePos.x;
                 const screenY = self.lastMousePos.y;
 
                 const graphCanvas = app.canvas;
-                const ds = graphCanvas.ds; // transform: { scale, offset }
+                const ds = graphCanvas.ds; 
                 const canvasRect = graphCanvas.canvas.getBoundingClientRect();
 
-                // 屏幕坐标 -> 逻辑坐标
-                // 确保新生成的节点出现在鼠标位置
-                // 公式: Logical = (Screen - Rect - Offset*Scale) / Scale
-                // 即: (screenX - canvasRect.left) / ds.scale - ds.offset[0]
-                
                 const canvasX = (screenX - canvasRect.left) / ds.scale - ds.offset[0];
                 const canvasY = (screenY - canvasRect.top) / ds.scale - ds.offset[1];
 
-                // 构造模拟事件对象
-                // 注意：这里将 type 改为 'contextmenu' 或 'click'，避免使用 'keydown'
-                // 因为传递 'keydown' 可能会让搜索框误以为还在输入状态，导致不稳定
                 const dummyEvent = { 
                     type: "contextmenu", 
                     clientX: screenX,
@@ -234,7 +224,6 @@ app.registerExtension({
                     stopPropagation: () => {}
                 };
 
-                // 调用 ComfyUI 标准搜索框
                 app.canvas.showSearchBox(dummyEvent);
             } 
             else if (triggerMode === "AddNodeMenu") {
@@ -256,7 +245,9 @@ app.registerExtension({
         function exitReplaceMode() {
             if (self.pendingReplaceNodeIds.length === 0) return;
 
-            const graph = app.graph;
+            // [修复] 使用 activeGraph 而不是 app.graph
+            const graph = self.activeGraph || app.canvas.graph;
+
             for (const id of self.pendingReplaceNodeIds) {
                 const node = graph.getNodeById(id);
                 if (!node) continue;
@@ -272,25 +263,52 @@ app.registerExtension({
             }
 
             self.pendingReplaceNodeIds = [];
+            
+            // [新增] 卸载动态监听器，还原现场
+            if (self.activeGraph && self.originalOnNodeAdded) {
+                self.activeGraph.onNodeAdded = self.originalOnNodeAdded;
+            }
+            self.activeGraph = null;
+            self.originalOnNodeAdded = null;
+
             app.canvas.setDirty(true, true);
         }
 
+        // [新增] 处理节点添加的逻辑 (从原 setup 中提取)
+        function handleNodeAdded(node) {
+            if (self.isProcessing) return;
+
+            if (self.pendingReplaceNodeIds.length > 0) {
+                if (self.pendingReplaceNodeIds.includes(node.id)) return;
+
+                console.log("[ReplaceNode] 检测到新节点添加，执行批量替换...");
+                
+                handleBatchReplace(node);
+                exitReplaceMode();
+            }
+        }
+
         function handleBatchReplace(templateNode) {
-            const graph = app.graph;
+            // [修复] 使用 activeGraph
+            const graph = self.activeGraph;
+            if (!graph) return;
+
             self.isProcessing = true;
-            graph.beforeChange();
+            graph.beforeChange(); // 开启事务
 
             try {
                 app.canvas.deselectAllNodes();
                 const newNodes = [];
                 const idsToReplace = [...self.pendingReplaceNodeIds];
                 
+                // 处理第一个节点 (替换自身)
                 const firstOldNode = graph.getNodeById(idsToReplace[0]);
                 if (firstOldNode) {
                     doReplaceSingle(firstOldNode, templateNode);
                     newNodes.push(templateNode);
                 }
 
+                // 处理后续节点 (克隆并替换)
                 for (let i = 1; i < idsToReplace.length; i++) {
                     const oldNode = graph.getNodeById(idsToReplace[i]);
                     if (!oldNode) continue;
@@ -311,14 +329,15 @@ app.registerExtension({
             } catch (error) {
                 console.error("[ReplaceNode] 批量替换出错:", error);
             } finally {
-                graph.afterChange();
+                graph.afterChange(); // 结束事务
                 app.canvas.setDirty(true, true);
                 self.isProcessing = false;
             }
         }
 
         function doReplaceSingle(oldNode, newNode) {
-            const graph = app.graph;
+            // [修复] 使用 activeGraph 查找连线和节点
+            const graph = self.activeGraph;
             newNode.pos = [...oldNode.pos];
             
             // 复制 Widget 值
@@ -334,7 +353,7 @@ app.registerExtension({
                 }
             }
 
-            // 智能处理：JsonCombined 类的节点
+            // 智能处理：JsonCombined
             const mergeKeysWidget = newNode.widgets?.find(w => w.name === "merge_keys");
             if (mergeKeysWidget && oldNode.inputs) {
                 const connectedInputNames = [];
@@ -343,7 +362,6 @@ app.registerExtension({
                         connectedInputNames.push(input.name);
                     }
                 }
-                
                 if (connectedInputNames.length > 0) {
                     const newText = connectedInputNames.join("\n");
                     if (mergeKeysWidget.value !== newText) {
@@ -361,14 +379,15 @@ app.registerExtension({
                 for (let i = 0; i < oldNode.inputs.length; i++) {
                     const oldInput = oldNode.inputs[i];
                     if (!oldInput.link) continue;
+                    
+                    // [修复] 从 activeGraph 获取链接信息
                     const linkInfo = graph.links[oldInput.link];
                     if (!linkInfo) continue;
 
                     const originNode = graph.getNodeById(linkInfo.origin_id);
-                    // 传入当前索引 i，作为兜底
                     const newSlotIndex = findBestInputSlot(newNode, oldInput, i);
                     
-                    // 自动扩展槽位逻辑 (PixNodes 风格)
+                    // 自动扩展槽位逻辑
                     if (newSlotIndex >= newNode.inputs.length) {
                         const lastInput = newNode.inputs[newNode.inputs.length - 1];
                         if (lastInput) {
@@ -400,6 +419,7 @@ app.registerExtension({
                     if (newSlotIndex !== -1 && newSlotIndex < newNode.outputs.length) {
                         const linksToMigrate = [...oldOutput.links];
                         for (const linkId of linksToMigrate) {
+                            // [修复] 从 activeGraph 获取链接信息
                             const linkInfo = graph.links[linkId];
                             if (!linkInfo) continue;
                             const targetNode = graph.getNodeById(linkInfo.target_id);
@@ -412,26 +432,15 @@ app.registerExtension({
             graph.remove(oldNode);
         }
 
-        /**
-         * 寻找最佳输入端口
-         * 优先级:
-         * 1. Name & Type 完全匹配
-         * 2. Name 匹配
-         * 3. Type 匹配 (且唯一)
-         * 4. 顺序兜底 (Force Connect 或 类型兼容)
-         */
         function findBestInputSlot(node, oldSlot, oldIndex) {
             if (!node.inputs) return -1;
             
-            // 1. 完全匹配
             let idx = node.inputs.findIndex(s => s.name === oldSlot.name && s.type === oldSlot.type);
             if (idx !== -1) return idx;
 
-            // 2. 名称匹配
             idx = node.inputs.findIndex(s => s.name === oldSlot.name);
             if (idx !== -1) return idx;
 
-            // 3. 类型匹配 (排除 Any)
             const specificMatches = node.inputs.map((s, i) => ({s, i})).filter(item => {
                 if (oldSlot.type === "*" || oldSlot.type === "Any") return false;
                 if (item.s.type === "*" || item.s.type === "Any") return false;
@@ -439,13 +448,10 @@ app.registerExtension({
             });
             if (specificMatches.length === 1) return specificMatches[0].i;
 
-            // 4. 兜底逻辑
             const targetSlot = (oldIndex < node.inputs.length) ? node.inputs[oldIndex] : null;
             const forceConnect = app.ui.settings.getSettingValue("AlignLayout.ReplaceNode.ForceConnect", true);
 
-            if (forceConnect) {
-                return oldIndex;
-            }
+            if (forceConnect) return oldIndex;
 
             if (targetSlot) {
                 const isTypeCompatible = (
@@ -477,7 +483,6 @@ app.registerExtension({
             });
             if (specificMatches.length === 1) return specificMatches[0].i;
 
-            // 4. 兜底逻辑
             if (oldIndex < node.outputs.length) {
                 const targetSlot = node.outputs[oldIndex];
                 const forceConnect = app.ui.settings.getSettingValue("AlignLayout.ReplaceNode.ForceConnect", true);

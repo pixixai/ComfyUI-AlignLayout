@@ -1,4 +1,4 @@
-## 快捷节点菜单 (ComfyUI Quick Node Menu)
+## 🚀 收藏节点菜单 (Quick Node Menu)
 
 这是一个为 ComfyUI 设计的**高频节点极速访问工具**。它与 "Add Node Menu" 完美配合，专门用于展示你**收藏 (Favorite)** 的节点和分组，通过精简的列表让你专注于核心工作流。
 

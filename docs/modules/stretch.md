@@ -1,4 +1,4 @@
-## 📏 拉伸面板 (Stretch Panel)
+## 📏 节点拉伸 (Stretch Panel)
 
 **快捷键**: `Alt + S` (默认，可在设置中修改)
 

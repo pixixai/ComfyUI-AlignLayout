@@ -56,7 +56,9 @@ app.registerExtension({
          */
         function selectSameNodes() {
             const canvas = app.canvas;
-            const graph = app.graph;
+            // [修复] 关键修改：使用 app.canvas.graph 而不是 app.graph
+            // app.canvas.graph 始终指向当前正在编辑的图层（主工作流或子图）
+            const graph = app.canvas.graph;
             
             // 获取用户当前选中的节点实例
             const selectedNodes = Object.values(canvas.selected_nodes);
@@ -65,7 +67,8 @@ app.registerExtension({
             // 提取所有选中节点的类型标识符 (type/注册名)
             const targetTypes = new Set(selectedNodes.map(n => n.type));
 
-            // 获取图中所有节点并进行遍历匹配
+            // 获取当前图中所有节点并进行遍历匹配
+            // graph._nodes 此时会正确指向子图的节点列表
             const allNodes = graph._nodes;
             if (!allNodes) return;
 

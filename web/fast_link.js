@@ -24,7 +24,6 @@ app.registerExtension({
         };
 
         window.addEventListener("keydown", (e) => {
-            // 1. 动态读取配置
             const enabled = getSetting("FastLink.Enabled", true);
             if (!enabled) return;
 
@@ -35,23 +34,22 @@ app.registerExtension({
             
             if (e.key.toUpperCase() === triggerKey) {
                 if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
-                if (e.metaKey) return; // Mac Command键
+                if (e.metaKey) return; 
 
                 let cmdType = null;
                 
-                // 优先级：修饰键越多越优先判断
                 if (e.ctrlKey && e.shiftKey && e.altKey) {
-                    cmdType = "CMD_CLEAR_INTERNAL"; // 新增：清除内部连线
+                    cmdType = "CMD_CLEAR_INTERNAL"; 
                 } else if (e.altKey) {
-                    cmdType = "ALT_KEY"; // 链式
+                    cmdType = "ALT_KEY"; 
                 } else if (e.ctrlKey && e.shiftKey) {
-                    cmdType = "CTRL_SHIFT_KEY"; // 强制一对多
+                    cmdType = "CTRL_SHIFT_KEY"; 
                 } else if (e.ctrlKey) {
-                    cmdType = "CTRL_KEY"; // 强制多对一
+                    cmdType = "CTRL_KEY"; 
                 } else if (e.shiftKey) {
-                    cmdType = "SHIFT_KEY"; // 一对多
+                    cmdType = "SHIFT_KEY"; 
                 } else {
-                    cmdType = "KEY"; // 多对一
+                    cmdType = "KEY"; 
                 }
 
                 if (cmdType) {
@@ -68,7 +66,6 @@ app.registerExtension({
         const currentIds = Object.keys(currentSelectedNodes).sort().join(",");
         const now = Date.now();
         
-        // 读取超时设置
         const resetTimeout = getSetting("FastLink.ResetTimeout", 2000);
 
         if (currentIds !== this.commandState.lastSelection || 
@@ -86,12 +83,10 @@ app.registerExtension({
 
         const offset = this.commandState.count;
 
-        // 【关键修复】：在轮询模式(offset > 0)下，必须先断开选区内 Source->Target 的旧连线
-        // 否则非强制模式会因为端口被占用而跳过连接，导致无法“切换”接口。
-
+        // 轮询模式下，先断开旧连线以便切换
         switch (cmdType) {
             case "KEY": 
-                // 多对一 (F) - 切换终点接口
+                // 多对一 (F)
                 if (offset > 0) {
                     const nodes = this.getSortedSelection();
                     if (nodes.length >= 2) {
@@ -104,7 +99,7 @@ app.registerExtension({
                 break;
                 
             case "SHIFT_KEY": 
-                // 一对多 (Shift+F) - 切换起点接口
+                // 一对多 (Shift+F)
                 if (offset > 0) {
                     const nodes = this.getSortedSelectionStrict();
                     if (nodes.length >= 2) {
@@ -117,7 +112,7 @@ app.registerExtension({
                 break;
 
             case "CTRL_KEY": 
-                // 强制多对一 (Ctrl+F) - 切换源节点
+                // 强制多对一 (Ctrl+F)
                 if (offset > 0) {
                     const nodes = this.getSortedSelection();
                     if (nodes.length >= 2) {
@@ -130,7 +125,7 @@ app.registerExtension({
                 break;
 
             case "CTRL_SHIFT_KEY": 
-                // 强制一对多 (Ctrl+Shift+F) - 切换目标节点
+                // 强制一对多 (Ctrl+Shift+F)
                 if (offset > 0) {
                     const nodes = this.getSortedSelectionStrict();
                     if (nodes.length >= 2) {
@@ -152,33 +147,32 @@ app.registerExtension({
         }
     },
 
-    // 辅助：获取排序后的节点 (Visual Column)
     getSortedSelection() {
         if (!app.canvas.selected_nodes) return [];
         return this.sortNodesByVisualColumns(Object.values(app.canvas.selected_nodes));
     },
 
-    // 辅助：获取排序后的节点 (Strict Left)
     getSortedSelectionStrict() {
         if (!app.canvas.selected_nodes) return [];
         return this.sortNodesByStrictLeft(Object.values(app.canvas.selected_nodes));
     },
 
-    // 精准断开函数：只断开指定 sources 到指定 targets 之间的线
     disconnectLinksBetween(sources, targets) {
         if (!sources.length || !targets.length) return;
+        
+        // 【修复 1】使用 app.canvas.graph 兼容子图
+        const graph = app.canvas.graph;
         
         const sourceIds = new Set(sources.map(n => n.id));
         let changed = false;
 
-        // 遍历所有目标节点的输入
         for (const target of targets) {
             if (!target.inputs) continue;
             for (let i = 0; i < target.inputs.length; i++) {
                 const linkId = target.inputs[i].link;
                 if (linkId !== null) {
-                    const link = app.graph.links[linkId];
-                    // 如果这条线的源头在我们的 source 列表中 -> 断开
+                    // 【修复 1】使用 graph.links
+                    const link = graph.links[linkId];
                     if (link && sourceIds.has(link.origin_id)) {
                         target.disconnectInput(i);
                         changed = true;
@@ -186,13 +180,15 @@ app.registerExtension({
                 }
             }
         }
-        if (changed) app.graph.setDirtyCanvas(true, true);
+        // 【修复 1】使用 graph.setDirtyCanvas
+        if (changed) graph.setDirtyCanvas(true, true);
     },
 
-    // 原 disconnectInternalLinks，现在只用于 Ctrl+Shift+Alt+F
     clearSelectedInternalLinks() {
         const selectedNodes = Object.values(app.canvas.selected_nodes || {});
         if (selectedNodes.length < 2) return;
+
+        const graph = app.canvas.graph; // 【修复 1】
 
         const selectedNodeIds = new Set(selectedNodes.map(n => n.id));
         let changed = false;
@@ -202,7 +198,7 @@ app.registerExtension({
             for (let i = 0; i < node.inputs.length; i++) {
                 const linkId = node.inputs[i].link;
                 if (linkId !== null) {
-                    const link = app.graph.links[linkId];
+                    const link = graph.links[linkId]; // 【修复 1】
                     if (link && selectedNodeIds.has(link.origin_id)) {
                         node.disconnectInput(i);
                         changed = true;
@@ -210,10 +206,9 @@ app.registerExtension({
                 }
             }
         }
-        if (changed) app.graph.setDirtyCanvas(true, true);
+        if (changed) graph.setDirtyCanvas(true, true); // 【修复 1】
     },
 
-    // --- 排序算法 1: 视觉列排序 ---
     sortNodesByVisualColumns(nodes) {
         const verticalThreshold = getSetting("FastLink.VerticalThreshold", 0.8);
 
@@ -235,7 +230,6 @@ app.registerExtension({
         });
     },
 
-    // --- 排序算法 2: 严格左上排序 ---
     sortNodesByStrictLeft(nodes) {
         return nodes.sort((a, b) => {
             if (a.pos[0] !== b.pos[0]) return a.pos[0] - b.pos[0];
@@ -244,21 +238,33 @@ app.registerExtension({
         });
     },
 
-    // 核心连接逻辑
     connectSourcesToTarget(sources, targetNode, options = {}) {
         if (!targetNode.inputs) return false;
 
-        const { force = false, offset = 0, cycleTargetSlots = false, cycleSourceSlots = false } = options;
+        const { 
+            force = false, 
+            offset = 0, 
+            cycleTargetSlots = false, 
+            cycleSourceSlots = false,
+            sharedUsedOutputs = null // 【修复 2】新增参数：接收外部传入的已用端口记录
+        } = options;
+
         let connectionMade = false;
-        const usedSourceOutputs = new Set(); 
+        
+        // 如果外部没有传，则使用局部的 Set（多对一模式通常如此）
+        // 如果外部传了（一对多模式），则使用共享的 Set
+        const usedSourceOutputs = sharedUsedOutputs || new Set(); 
+        
         const inputCount = targetNode.inputs.length;
         const matchStrategy = getSetting("FastLink.MatchStrategy", "name_type");
+
+        // 【修复 1】使用 app.canvas.graph
+        const graph = app.canvas.graph;
 
         for (let k = 0; k < inputCount; k++) {
             const i = cycleTargetSlots ? (k + offset) % inputCount : k;
             const input = targetNode.inputs[i];
             
-            // 如果是非强制模式，且接口已有连线，坚决跳过，保护现有连接
             if (input.link && !force) continue;
 
             let bestMatch = null;
@@ -272,11 +278,27 @@ app.registerExtension({
                     const j = cycleSourceSlots ? (m + offset) % outputCount : m;
                     const output = sourceNode.outputs[j];
                     
-                    if (!cycleSourceSlots && usedSourceOutputs.has(`${sourceNode.id}_${j}`)) continue;
-                    
-                    // 强制模式检查：如果已经连接的就是这个源，跳过（避免重复断开重连）
+                    const outputId = `${sourceNode.id}_${j}`;
+
+                    // 【修复 2】改进的占用检查逻辑
+                    // 只有当 cycleSourceSlots=false (非轮询源接口模式) 时才检查占用
+                    if (!cycleSourceSlots) {
+                        // 检查这个端口是否在本次批处理中被用过
+                        if (usedSourceOutputs.has(outputId)) {
+                            // 如果被用过，我们不立即跳过，而是给它一个极低的分数（降级）
+                            // 这样：如果有空闲端口，优先连空闲的；如果全满了，才允许广播（连已用的）。
+                            // 除非是 ManyToOne (多汇聚一)，此时通常不希望同一个源连同一个目标两次，所以可以保持跳过。
+                            // 但为了简化逻辑，我们这里采取：如果外部传入了 sharedSet (一对多模式)，我们进行降级；否则跳过。
+                            if (sharedUsedOutputs) {
+                                // 这是一个已用的端口，稍后评分时会扣分
+                            } else {
+                                continue; // 多对一模式下，同一个源只连一次
+                            }
+                        }
+                    }
+
                     if (input.link) {
-                        const link = app.graph.links[input.link];
+                        const link = graph.links[input.link]; // 【修复 1】
                         if (link && link.origin_id === sourceNode.id && link.origin_slot === j) continue;
                     }
 
@@ -304,6 +326,18 @@ app.registerExtension({
                         }
                     }
 
+                    // 【修复 2】关键：如果该端口已被使用，大幅扣分，迫使算法优先寻找其他空闲端口
+                    if (sharedUsedOutputs && usedSourceOutputs.has(outputId)) {
+                        currentScore -= 10; // 扣大分，变成负分也没关系，只要比其他更差就行
+                        // 但要保证比 0 大吗？不，只要算法能处理。
+                        // 这里简单处理：如果它是唯一匹配，currentScore 即使很低也会被选中（因为 bestMatchScore 初始 0，需要调整）
+                        // 修正：如果 currentScore <= 0，我们就不连了？不，我们希望连。
+                        // 所以不仅要扣分，还要保证 bestMatchScore 的初始值逻辑能接受它。
+                        // 我们把“未占用”的基础分都 +100，占用的保持原分。
+                    } else {
+                         currentScore += 100; // 未占用的端口，给予巨大优势
+                    }
+
                     if (currentScore > bestMatchScore) {
                         bestMatchScore = currentScore;
                         bestMatch = { sourceNode, outputIndex: j };
@@ -312,7 +346,6 @@ app.registerExtension({
             }
 
             if (bestMatch) {
-                // 只有在 force=true 时，且 input.link 存在时，才断开
                 if (input.link && force) {
                     targetNode.disconnectInput(i);
                 }
@@ -335,8 +368,9 @@ app.registerExtension({
             const idx = options.offset % sourceNodes.length;
             sourceNodes = [sourceNodes[idx]];
         }
+        // 【修复 1】使用 app.canvas.graph
         if (this.connectSourcesToTarget(sourceNodes, targetNode, options)) {
-            app.graph.setDirtyCanvas(true, true);
+            app.canvas.graph.setDirtyCanvas(true, true);
         }
     },
 
@@ -351,13 +385,21 @@ app.registerExtension({
             const idx = options.offset % targetNodes.length;
             targetNodes = [targetNodes[idx]];
         }
+        
+        // 【修复 2】创建一个在本次“一对多”操作中共享的 Set
+        // 这样 Target A 用了 Output 1 后，Target B 就会知道，从而优先选 Output 2
+        const batchUsedSourceOutputs = new Set();
+        const sharedOptions = { ...options, sharedUsedOutputs: batchUsedSourceOutputs };
+
         let changed = false;
         for (const targetNode of targetNodes) {
-            if (this.connectSourcesToTarget([sourceNode], targetNode, options)) {
+            // 将共享 Set 传入
+            if (this.connectSourcesToTarget([sourceNode], targetNode, sharedOptions)) {
                 changed = true;
             }
         }
-        if (changed) app.graph.setDirtyCanvas(true, true);
+        // 【修复 1】使用 app.canvas.graph
+        if (changed) app.canvas.graph.setDirtyCanvas(true, true);
     },
 
     connectDaisyChain() {
@@ -369,12 +411,12 @@ app.registerExtension({
 
         for (let i = 1; i < nodes.length; i++) {
             const target = nodes[i];
-            // 链式连接通常是非强制的，避免破坏中间复杂的布线
             if (this.connectSourcesToTarget([currentSource], target, { force: false })) {
                 currentSource = target;
                 changed = true;
             } 
         }
-        if (changed) app.graph.setDirtyCanvas(true, true);
+        // 【修复 1】使用 app.canvas.graph
+        if (changed) app.canvas.graph.setDirtyCanvas(true, true);
     }
 });

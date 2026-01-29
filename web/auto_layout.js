@@ -10,11 +10,11 @@ app.registerExtension({
             const activeTag = document.activeElement.tagName;
             if (activeTag === "INPUT" || activeTag === "TEXTAREA") return;
 
-            // 检查总开关 (ID 更新为 AutoLayout.Enabled)
+            // 检查总开关
             const isEnabled = app.extensionManager.setting.get("AutoLayout.Enabled") ?? true;
             if (!isEnabled) return;
 
-            // 读取配置 (ID 更新为 AutoLayout.Shortcut)
+            // 读取配置
             const shortcutStr = (app.extensionManager.setting.get("AutoLayout.Shortcut") || "Alt+L").toUpperCase();
             
             const parts = shortcutStr.split("+").map(s => s.trim());
@@ -41,9 +41,18 @@ app.registerExtension({
     },
 
     /**
+     * 辅助函数：安全获取 Link 对象
+     * 优先查找当前 graph，如果找不到（例如子图情况），则回退到全局 app.graph 查找
+     */
+    getLink(linkId, graph) {
+        if (linkId == null) return null;
+        return graph.links?.[linkId] ?? app.graph.links?.[linkId];
+    },
+
+    /**
      * 获取节点组（连通分量）
      */
-    getConnectedGroups(nodes, links) {
+    getConnectedGroups(nodes, graph) {
         const groups = [];
         const visited = new Set();
         const nodeSet = new Set(nodes.map(n => n.id));
@@ -62,12 +71,14 @@ app.registerExtension({
                 if (curr.inputs) {
                     for (const inp of curr.inputs) {
                         if (inp.link) {
-                            const link = links[inp.link];
+                            // [修复] 使用 getLink 查找链接，支持跨图查找
+                            const link = this.getLink(inp.link, graph);
                             if (!link) continue;
                             const srcId = link.origin_id;
                             if (nodeSet.has(srcId) && !visited.has(srcId)) {
                                 visited.add(srcId);
-                                queue.push(app.graph.getNodeById(srcId));
+                                const srcNode = graph.getNodeById(srcId);
+                                if (srcNode) queue.push(srcNode);
                             }
                         }
                     }
@@ -77,12 +88,14 @@ app.registerExtension({
                     for (const out of curr.outputs) {
                         if (out.links) {
                             for (const linkId of out.links) {
-                                const link = links[linkId];
+                                // [修复] 使用 getLink 查找链接
+                                const link = this.getLink(linkId, graph);
                                 if (!link) continue;
                                 const dstId = link.target_id;
                                 if (nodeSet.has(dstId) && !visited.has(dstId)) {
                                     visited.add(dstId);
-                                    queue.push(app.graph.getNodeById(dstId));
+                                    const dstNode = graph.getNodeById(dstId);
+                                    if (dstNode) queue.push(dstNode);
                                 }
                             }
                         }
@@ -98,12 +111,12 @@ app.registerExtension({
      * 主排列函数
      */
     arrangeNodes() {
-        const graph = app.graph;
+        const graph = app.canvas.graph; 
         const selectedNodesMap = app.canvas.selected_nodes;
         let targetNodes = [];
         let isSelectionMode = false;
 
-        // 读取所有配置 (所有 ID 均从 AlignLayout 改为 AutoLayout)
+        // 读取所有配置
         const horizontalGap = Number(app.extensionManager.setting.get("AutoLayout.HorizontalGap") ?? 80);
         const rowHeightGap = Number(app.extensionManager.setting.get("AutoLayout.VerticalGap") ?? 60);
         const islandGap = Number(app.extensionManager.setting.get("AutoLayout.IslandGap") ?? 150);
@@ -119,7 +132,7 @@ app.registerExtension({
 
         if (!targetNodes || targetNodes.length === 0) return;
 
-        const groups = this.getConnectedGroups(targetNodes, graph.links);
+        const groups = this.getConnectedGroups(targetNodes, graph);
 
         groups.sort((g1, g2) => {
             if (islandDir === "Vertical") {
@@ -136,14 +149,23 @@ app.registerExtension({
         const isReverse = layoutDir.includes("Right-to-Left");
         let anchorX, anchorY;
 
-        if (isSelectionMode) {
+        // [修改] 统一锚点逻辑：无论是全局还是局部，都以当前节点群的边界为基准
+        // 这样可以确保节点整理后停留在原地，不会飞到画布的远端
+        if (targetNodes.length > 0) {
+            const allMinY = Math.min(...targetNodes.map(n => n.pos[1]));
+            
             if (isReverse) {
-                anchorX = Math.max(...targetNodes.map(n => n.pos[0] + n.size[0]));
+                // 逆向模式：以最右侧边缘为锚点
+                const allMaxRight = Math.max(...targetNodes.map(n => n.pos[0] + n.size[0]));
+                anchorX = allMaxRight;
             } else {
-                anchorX = Math.min(...targetNodes.map(n => n.pos[0]));
+                // 正向模式：以最左侧边缘为锚点
+                const allMinX = Math.min(...targetNodes.map(n => n.pos[0]));
+                anchorX = allMinX;
             }
-            anchorY = Math.min(...targetNodes.map(n => n.pos[1]));
+            anchorY = allMinY;
         } else {
+            // 兜底（理论上不会触发）
             anchorX = isReverse ? 1200 : 100;
             anchorY = 100;
         }
@@ -154,13 +176,12 @@ app.registerExtension({
         for (const group of groups) {
             const groupBounds = this.layoutGroup(
                 group, 
-                graph.links, 
+                graph, // [修复] 直接传 graph，不再传 links
                 currentGroupX, 
                 currentGroupY, 
                 horizontalGap, 
                 rowHeightGap, 
-                isReverse,
-                graph
+                isReverse
             );
             
             if (islandDir === "Vertical") {
@@ -181,7 +202,7 @@ app.registerExtension({
     /**
      * 单组布局实现
      */
-    layoutGroup(nodes, links, anchorX, startY, horizontalGap, rowHeightGap, isReverse, graph) {
+    layoutGroup(nodes, graph, anchorX, startY, horizontalGap, rowHeightGap, isReverse) {
         const targetIds = new Set(nodes.map(n => n.id));
         const nodeDepths = {};
         nodes.forEach(n => nodeDepths[n.id] = 0);
@@ -192,7 +213,8 @@ app.registerExtension({
                 if (isReverse) {
                     if (node.outputs) {
                         node.outputs.forEach(out => out.links?.forEach(lId => {
-                            const l = links[lId];
+                            // [修复] 使用 getLink
+                            const l = this.getLink(lId, graph);
                             if (l && targetIds.has(l.target_id) && nodeDepths[node.id] <= nodeDepths[l.target_id]) {
                                 nodeDepths[node.id] = nodeDepths[l.target_id] + 1;
                                 changed = true;
@@ -202,7 +224,8 @@ app.registerExtension({
                 } else {
                     if (node.inputs) {
                         node.inputs.forEach(inp => {
-                            const l = links[inp.link];
+                            // [修复] 使用 getLink
+                            const l = this.getLink(inp.link, graph);
                             if (l && targetIds.has(l.origin_id) && nodeDepths[node.id] <= nodeDepths[l.origin_id]) {
                                 nodeDepths[node.id] = nodeDepths[l.origin_id] + 1;
                                 changed = true;
@@ -242,12 +265,12 @@ app.registerExtension({
                         let minS = 999;
                         if (isReverse) {
                             n.outputs?.forEach(o => o.links?.forEach(lid => {
-                                const l = links[lid];
+                                const l = this.getLink(lid, graph); // [修复] 使用 getLink
                                 if (l && nodeDepths[l.target_id] === depth - 1) minS = Math.min(minS, l.target_slot);
                             }));
                         } else {
                             n.inputs?.forEach((inp, idx) => {
-                                const l = links[inp.link];
+                                const l = this.getLink(inp.link, graph); // [修复] 使用 getLink
                                 if (l && nodeDepths[l.origin_id] === depth - 1) minS = Math.min(minS, idx);
                             });
                         }
@@ -267,14 +290,14 @@ app.registerExtension({
                         if (isReverse) {
                             let rel = [];
                             node.outputs?.forEach(o => o.links?.forEach(lid => {
-                                const l = links[lid];
+                                const l = this.getLink(lid, graph); // [修复] 使用 getLink
                                 if (l && nodeDepths[l.target_id] === depth - 1) rel.push(l.target_id);
                             }));
                             return rel.length === 1 ? graph.getNodeById(rel[0]) : null;
                         } else {
                             let rel = [];
                             node.inputs?.forEach(i => {
-                                const l = links[i.link];
+                                const l = this.getLink(i.link, graph); // [修复] 使用 getLink
                                 if (l && nodeDepths[l.origin_id] === depth - 1) rel.push(l.origin_id);
                             });
                             return rel.length === 1 ? graph.getNodeById(rel[0]) : null;

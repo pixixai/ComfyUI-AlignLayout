@@ -949,7 +949,8 @@ app.registerExtension({
              const node = LiteGraph.createNode(name);
              if (node) {
                  node.pos = [lockedCanvasPos.x, lockedCanvasPos.y];
-                 app.graph.add(node);
+                 // [修复] 关键修改：使用 app.canvas.graph 而不是 app.graph
+                 app.canvas.graph.add(node);
                  app.canvas.selectNode(node);
              }
         }
