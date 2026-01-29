@@ -30,6 +30,10 @@ app.registerExtension({
         let flickStartPos = null;
         let flickStartTime = 0;
         let isTrackingFlick = false;
+        
+        // [新增] 内存缓存变量 (刷新页面后会自动重置为 null)
+        let cachedGapH = null;
+        let cachedGapV = null;
 
         // 静态常量
         const btnBg = "rgba(34, 34, 34, 0.6)"; 
@@ -132,7 +136,8 @@ app.registerExtension({
         panel.appendChild(bottomRow);
 
         // 创建胶囊型控制组 (左数值 - 右图标)
-        const createCapsuleGroup = (cmd, tooltip, defaultValue) => {
+        // [修改] 参数改为 currentValue 和 onInput 回调
+        const createCapsuleGroup = (cmd, tooltip, currentValue, onInput) => {
             const iconHtml = getIconHtml(cmd);
             const container = document.createElement("div");
             container.style.cssText = `
@@ -149,7 +154,10 @@ app.registerExtension({
             
             const input = document.createElement("input");
             input.type = "number";
-            input.value = defaultValue; // 使用传入的默认值
+
+            // [修改] 直接使用传入的当前值 (内存值或默认值)
+            input.value = currentValue;
+
             input.style.cssText = `
                 width: 40px; 
                 height: 24px; 
@@ -173,6 +181,13 @@ app.registerExtension({
             input.onblur = dimInput;
             input.onclick = (e) => { e.stopPropagation(); input.focus(); };
             input.onpointerdown = (e) => e.stopPropagation(); 
+
+            // [修改] 监听输入变化，更新内存变量
+            if (onInput) {
+                input.addEventListener("input", () => {
+                   onInput(input.value); 
+                });
+            }
 
             const trigger = () => {
                 let val = parseInt(input.value);
@@ -232,8 +247,17 @@ app.registerExtension({
             const defGapV = s.getSettingValue(SETTING_IDS.GAP_V, 50);
             const defGapH = s.getSettingValue(SETTING_IDS.GAP_H, 50);
 
+            // [修改] 优先使用内存中的值，如果为 null 则使用默认值
+            const currentV = cachedGapV !== null ? cachedGapV : defGapV;
+            const currentH = cachedGapH !== null ? cachedGapH : defGapH;
+
             // 1. 左侧胶囊 (垂直分布)
-            bottomRow.appendChild(createCapsuleGroup("spacing_dist_v", "Vertical Distribution Spacing (Stack & Center X)", defGapV));
+            bottomRow.appendChild(createCapsuleGroup(
+                "spacing_dist_v", 
+                "Vertical Distribution Spacing (Stack & Center X)", 
+                currentV, 
+                (val) => cachedGapV = val // 回调更新内存变量
+            ));
 
             // 2. 中间按钮 (自动布局)
             const autoLayoutBtn = createPillButton(getIconHtml("auto_layout"), 36, 36, true);
@@ -250,7 +274,12 @@ app.registerExtension({
             bottomRow.appendChild(autoLayoutBtn);
 
             // 3. 右侧胶囊 (水平分布)
-            bottomRow.appendChild(createCapsuleGroup("spacing_dist_h", "Horizontal Distribution Spacing (Row & Center Y)", defGapH));
+            bottomRow.appendChild(createCapsuleGroup(
+                "spacing_dist_h", 
+                "Horizontal Distribution Spacing (Row & Center Y)", 
+                currentH, 
+                (val) => cachedGapH = val // 回调更新内存变量
+            ));
         };
 
         document.body.appendChild(panel);

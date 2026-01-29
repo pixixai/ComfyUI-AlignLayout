@@ -1,4 +1,8 @@
 {
+    "FastLink_ResetAll": {
+        "name": "恢复默认设置",
+        "tooltip": "⚠️ 警告：点击此开关将重置所有“快速链接设置”为初始默认值。执行完成后开关会自动复位。"
+    },
     "FastLink_Enabled": {
         "name": "启用 Fast Link 插件",
         "tooltip": "全局开关，启用或禁用 Fast Link 的所有功能。"
@@ -25,7 +29,10 @@
     },
 
 
-
+    "AlignLayout_ReplaceNode_ResetAll": {
+        "name": "恢复默认设置",
+        "tooltip": "⚠️ 警告：点击此开关将重置所有“替换节点设置”为初始默认值。执行完成后开关会自动复位。"
+    },
     "AlignLayout_ReplaceNode_Enabled": {
         "name": "启用替换节点",
         "tooltip": "是否启用“替换节点”功能。"
@@ -66,7 +73,10 @@
     },
 
 
-
+    "AlignLayout_SelectSame_ResetAll": {
+        "name": "恢复默认设置",
+        "tooltip": "⚠️ 警告：点击此开关将重置所有“选择相同节点”设置为初始默认值。执行完成后开关会自动复位。"
+    },
     "AlignLayout_SelectSame_Enabled": {
         "name": "启用选中相同节点",
         "tooltip": "是否启用“选择相同节点”功能。"
@@ -78,6 +88,10 @@
 
 
 
+    "AutoLayout_ResetAll": {
+        "name": "恢复默认设置",
+        "tooltip": "⚠️ 警告：点击此开关将重置所有“自动布局设置”为初始默认值。执行完成后开关会自动复位。"
+    },
     "AutoLayout_Enabled": {
         "name": "启用自动布局",
         "tooltip": "开启或关闭快捷键触发自动布局功能"
@@ -116,7 +130,10 @@
     },
 
 
-
+    "NodeAligner_ResetAll": {
+        "name": "恢复默认设置",
+        "tooltip": "⚠️ 警告：点击此开关将重置所有“节点对齐设置”为初始默认值。执行完成后开关会自动复位。"
+    },
     "NodeAligner_Enabled": {
         "name": "启用节点对齐",
         "tooltip": "开启或关闭节点对齐插件功能"
@@ -281,6 +298,10 @@
             "Auto Layout": "自动布局"
         }
     },
+    "NodeResizer_ResetAll": {
+        "name": "恢复默认设置",
+        "tooltip": "⚠️ 警告：点击此开关将重置所有“节点拉伸设置”为初始默认值。执行完成后开关会自动复位。"
+    },
     "NodeResizer_Enabled": {
         "name": "启用节点拉伸",
         "tooltip": "开启或关闭节点拉伸插件功能"
@@ -415,6 +436,10 @@
     },
 
 
+    "AddNodeMenu_ResetAll": {
+        "name": "恢复默认设置",
+        "tooltip": "⚠️ 警告：点击此开关将重置所有“添加节点菜单设置”为初始默认值。执行完成后开关会自动复位。"
+    },
     "AddNodeMenu_Enabled": {
         "name": "启用添加节点菜单",
         "tooltip": "开启或关闭自定义添加节点菜单功能。"
@@ -466,6 +491,10 @@
 
 
 
+    "QuickNodeMenu_ResetAll": {
+        "name": "恢复默认设置",
+        "tooltip": "⚠️ 警告：点击此开关将重置所有“快捷节点菜单设置”为初始默认值。执行完成后开关会自动复位。"
+    },
     "QuickNodeMenu_Enabled": {
         "name": "启用快捷节点菜单",
         "tooltip": "开启或关闭自定义快捷节点菜单（收藏）功能。"
@@ -501,5 +530,10 @@
     "QuickNodeMenu_RememberLast": {
         "name": "记住上次分类 (收藏)",
         "tooltip": "重新打开收藏菜单时，自动定位到上次打开的文件夹位置。"
+    },
+
+    "A-General_MasterResetAll": {
+        "name": "恢复全部默认设置",
+        "tooltip": "⚠️ 终极警告：点击此开关将重置 AlignLayout 分类下的【所有】插件设置项为初始默认值。执行完成后开关会自动复位。"
     }
 }
