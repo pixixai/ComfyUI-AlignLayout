@@ -15,6 +15,7 @@
     - 环形菜单布局：上/下/左/右对齐、水平/垂直居中、垂直/水平平均分布
     - 底部控制栏：支持指定间距堆叠和自动布局
     - 智能交互：面板跟随鼠标、动态指示器、自动退出
+- **详细说明文档：** <!-- INCLUDE:docs/modules/align.md -->
 
 
 ---
@@ -31,6 +32,7 @@
     - 双模操作：点击触发或鼠标甩动触发
     - 互斥模式：与对齐面板自动互斥显示
     - 智能交互：面板跟随鼠标、动态指示器
+- **详细说明文档：** <!-- INCLUDE:docs/modules/stretch.md -->
 
 ---
 
@@ -46,6 +48,7 @@
     - 智能流式布局：自动识别独立节点组，端口感知排序
     - 防碰撞机制，防止节点重叠
     - 支持撤销操作
+- **详细说明文档：** <!-- INCLUDE:docs/modules/auto_layout.md -->
 
 ---
 
@@ -61,6 +64,7 @@
     - 拖拽置顶与节点收藏功能
     - 现代化深色磨砂玻璃风格UI
     - 配置本地存储，支持迁移备份
+- **详细说明文档：** <!-- INCLUDE:docs/modules/add_node_menu.md -->
 
 ---
 
@@ -76,6 +80,7 @@
     - 独立置顶逻辑，可自定义排序
     - 紫色系高亮风格，与主菜单区分
     - 互斥显示：与添加节点菜单互斥
+- **详细说明文档：** <!-- INCLUDE:docs/modules/quick_node_menu.md -->
 
 ---
 
@@ -97,6 +102,7 @@
     - 智能保护连线，非强制模式不断开已有连接
     - 视觉列排序与严格左上排序算法
     - 高度可配置：阈值、超时、匹配优先级等
+- **详细说明文档：** <!-- INCLUDE:docs/modules/fast_link.md -->
 
 ---
 
@@ -111,6 +117,7 @@
     - 支持多类型同时选择
     - 配合排版工具可快速整理同类节点
     - 简单高效，适用于大型工作流整理
+- **详细说明文档：** <!-- INCLUDE:docs/modules/select_same_nodes.md -->
 
 ---
 
@@ -127,8 +134,9 @@
     - 支持批量替换相同类型节点
     - 高亮反馈与可自定义视觉样式
     - 支持撤销操作
+- **详细说明文档：** <!-- INCLUDE:docs/modules/replace_node.md -->
 
-<!-- TOC -->
+## 详细说明文档导航
 
 <!-- INCLUDE:docs/modules/align.md -->
 
@@ -146,11 +154,52 @@
 
 <!-- INCLUDE:docs/modules/select_same_nodes.md -->
 
-## 🤙 联系我们
+## 安装方法
+
+### 方法一：通过 ComfyUI Manager 安装
+
+- 管理器内搜索：AlignLayout
+
+### 方法二：手动安装
+1. 进入 ComfyUI 自定义节点目录
+    ```
+    cd ComfyUI/custom_nodes/
+    ```
+2. 克隆本仓库（确保先安装git）
+    ```
+    git clone https://github.com/pixixai/ComfyUI-AlignLayout.git
+
+    ```
+    或下载 ZIP 并解压到 custom_nodes 文件夹
+
+3. 重启 ComfyUI
+
+## 🏆 参考项目
+
+- 功能参考：https://github.com/Moooonet/ComfyUI-Align
+
+
+## 📝 更新日志
+[1.0.5] - 2026-01-29
+- <修复：“自动布局”“添加节点菜单”“收藏节点菜单”“快速连接”“替换节点”“选择相同节点”在子图下不能生效的bug>
+- <修复：“自动布局”后节点依旧在当前位置>
+- <“快速连接-一对多”时总是把一个端口输出给每个节点>
+- < README文档格式调整 >
+
+[1.0.4] - 2026-01-28
+- <自定义设置>：可以在设置中设置每个功能
+- <选择相同节点>：Shift+A，选择画布上相同的节点。
+- <自动布局>：Alt+L，根据流开始或结束的节点，排列布局。
+- <快速连线>：F，快速连接选择的节点（根据位置）
+- <替换节点>：Shift+R，替换选中的节点（可替换多个）
+
+
+## 🤙 联系方式
 
 如有问题请提交 Issue。
 
 - bilibili：[噼哩画啦](https://space.bilibili.com/1370099549)
 
 - 邮箱：pixixai@gmail.com
+  
 - 邮箱：pixixai@qq.com
