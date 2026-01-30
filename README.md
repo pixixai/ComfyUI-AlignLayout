@@ -15,8 +15,7 @@
     - 环形菜单布局：上/下/左/右对齐、水平/垂直居中、垂直/水平平均分布
     - 底部控制栏：支持指定间距堆叠和自动布局
     - 智能交互：面板跟随鼠标、动态指示器、自动退出
-- **详细说明文档：** <!-- INCLUDE:docs/modules/align.md -->
-
+- **详细说明文档：** <!-- INCLUDE:web/docs/align.md -->
 
 ---
 
@@ -32,7 +31,7 @@
     - 双模操作：点击触发或鼠标甩动触发
     - 互斥模式：与对齐面板自动互斥显示
     - 智能交互：面板跟随鼠标、动态指示器
-- **详细说明文档：** <!-- INCLUDE:docs/modules/stretch.md -->
+- **详细说明文档：** <!-- INCLUDE:web/docs/stretch.md -->
 
 ---
 
@@ -48,7 +47,7 @@
     - 智能流式布局：自动识别独立节点组，端口感知排序
     - 防碰撞机制，防止节点重叠
     - 支持撤销操作
-- **详细说明文档：** <!-- INCLUDE:docs/modules/auto_layout.md -->
+- **详细说明文档：** <!-- INCLUDE:web/docs/auto_layout.md -->
 
 ---
 
@@ -64,7 +63,7 @@
     - 拖拽置顶与节点收藏功能
     - 现代化深色磨砂玻璃风格UI
     - 配置本地存储，支持迁移备份
-- **详细说明文档：** <!-- INCLUDE:docs/modules/add_node_menu.md -->
+- **详细说明文档：** <!-- INCLUDE:web/docs/add_node_menu.md -->
 
 ---
 
@@ -80,7 +79,7 @@
     - 独立置顶逻辑，可自定义排序
     - 紫色系高亮风格，与主菜单区分
     - 互斥显示：与添加节点菜单互斥
-- **详细说明文档：** <!-- INCLUDE:docs/modules/quick_node_menu.md -->
+- **详细说明文档：** <!-- INCLUDE:web/docs/quick_node_menu.md -->
 
 ---
 
@@ -102,7 +101,7 @@
     - 智能保护连线，非强制模式不断开已有连接
     - 视觉列排序与严格左上排序算法
     - 高度可配置：阈值、超时、匹配优先级等
-- **详细说明文档：** <!-- INCLUDE:docs/modules/fast_link.md -->
+- **详细说明文档：** <!-- INCLUDE:web/docs/fast_link.md -->
 
 ---
 
@@ -117,7 +116,7 @@
     - 支持多类型同时选择
     - 配合排版工具可快速整理同类节点
     - 简单高效，适用于大型工作流整理
-- **详细说明文档：** <!-- INCLUDE:docs/modules/select_same_nodes.md -->
+- **详细说明文档：** <!-- INCLUDE:web/docs/select_same_nodes.md -->
 
 ---
 
@@ -134,25 +133,25 @@
     - 支持批量替换相同类型节点
     - 高亮反馈与可自定义视觉样式
     - 支持撤销操作
-- **详细说明文档：** <!-- INCLUDE:docs/modules/replace_node.md -->
+- **详细说明文档：** <!-- INCLUDE:web/docs/replace_node.md -->
 
 ## 详细说明文档导航
 
-<!-- INCLUDE:docs/modules/align.md -->
+<!-- INCLUDE:web/docs/align.md -->
 
-<!-- INCLUDE:docs/modules/stretch.md -->
+<!-- INCLUDE:web/docs/stretch.md -->
 
-<!-- INCLUDE:docs/modules/auto_layout.md -->
+<!-- INCLUDE:web/docs/auto_layout.md -->
 
-<!-- INCLUDE:docs/modules/add_node_menu.md -->
+<!-- INCLUDE:web/docs/add_node_menu.md -->
 
-<!-- INCLUDE:docs/modules/quick_node_menu.md -->
+<!-- INCLUDE:web/docs/quick_node_menu.md -->
 
-<!-- INCLUDE:docs/modules/fast_link.md -->
+<!-- INCLUDE:web/docs/fast_link.md -->
 
-<!-- INCLUDE:docs/modules/replace_node.md -->
+<!-- INCLUDE:web/docs/replace_node.md -->
 
-<!-- INCLUDE:docs/modules/select_same_nodes.md -->
+<!-- INCLUDE:web/docs/select_same_nodes.md -->
 
 ## 安装方法
 
