@@ -4,6 +4,7 @@ on:
   push:
     # --- 监控路径已修改：只有 web/docs 文件夹或脚本变动时触发 ---
     paths:
+      - 'README.md'
       - 'web/docs/**'
       - 'scripts/build_readme.py'
     branches:
