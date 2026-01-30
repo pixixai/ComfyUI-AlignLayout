@@ -2,17 +2,20 @@ name: Build and Sync README
 
 on:
   push:
-    # --- 监控路径已更新：只有 docs 文件夹或脚本变动时触发 ---
+    # --- 监控路径已修改：只有 web/docs 文件夹或脚本变动时触发 ---
     paths:
-      - 'docs/**'
+      - 'web/docs/**'
       - 'scripts/build_readme.py'
     branches:
       - main
+  # 允许在 GitHub 页面上手动点击按钮触发
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
     
+    # 给予 Action 写入仓库的权限
     permissions:
       contents: write
 
@@ -26,6 +29,7 @@ jobs:
           python-version: '3.x'
 
       - name: Generate README
+        # 执行合并指令：脚本内部路径也需要同步修改
         run: python scripts/build_readme.py
 
       - name: Commit and Push Changes
@@ -33,10 +37,12 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           
+          # 检查生成的 README.md 是否有实际内容变化
           git add README.md
           if git diff --staged --quiet; then
-            echo "没有内容变化，跳过提交。"
+            echo "No changes in README.md, skipping commit."
           else
-            git commit -m "docs: 自动同步 README (来自 docs/ 目录) [skip ci]"
+            # [skip ci] 防止 Action 递归触发
+            git commit -m "docs: auto-sync README from web/docs/ [skip ci]"
             git push
           fi
