@@ -7,6 +7,9 @@ import { app } from "../../scripts/app.js";
  * - [修复] 支持在子图 (Group Node) 中使用：
  * 1. 将 app.graph 替换为动态获取的 activeGraph (app.canvas.graph)。
  * 2. onNodeAdded 监听器改为动态挂载到当前活动的 Graph 实例上。
+ * - [修复] 搜索框自动关闭问题：
+ * 1. 使用 setTimeout 延迟弹出搜索框，避免快捷键事件冲突导致焦点丢失。
+ * 2. [V2修复] 将延迟从 10ms 增加到 100ms，解决快速输入时的焦点抢占问题。
  */
 app.registerExtension({
     name: "Comfy.AlignLayout.ReplaceNode.Logic",
@@ -224,9 +227,14 @@ app.registerExtension({
                     stopPropagation: () => {}
                 };
 
-                app.canvas.showSearchBox(dummyEvent);
+                // [修复] 使用 setTimeout 延迟弹出，防止按键事件冲突导致搜索框失去焦点而自动关闭
+                // [V2] 增加延迟到 100ms，确保 Shift+R 的 keyup 事件完全处理完毕
+                setTimeout(() => {
+                    app.canvas.showSearchBox(dummyEvent);
+                }, 100);
             } 
             else if (triggerMode === "AddNodeMenu") {
+                // 如果其他菜单也出现类似问题，建议同样加 setTimeout
                 if (typeof window.alignLayout_openAddNodeMenu === "function") {
                     window.alignLayout_openAddNodeMenu();
                 } else {
