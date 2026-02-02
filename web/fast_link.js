@@ -33,6 +33,7 @@ app.registerExtension({
                 : "F";
             
             if (e.key.toUpperCase() === triggerKey) {
+                // 避免在输入框中触发
                 if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
                 if (e.metaKey) return; 
 
@@ -160,7 +161,6 @@ app.registerExtension({
     disconnectLinksBetween(sources, targets) {
         if (!sources.length || !targets.length) return;
         
-        // 【修复 1】使用 app.canvas.graph 兼容子图
         const graph = app.canvas.graph;
         
         const sourceIds = new Set(sources.map(n => n.id));
@@ -171,7 +171,6 @@ app.registerExtension({
             for (let i = 0; i < target.inputs.length; i++) {
                 const linkId = target.inputs[i].link;
                 if (linkId !== null) {
-                    // 【修复 1】使用 graph.links
                     const link = graph.links[linkId];
                     if (link && sourceIds.has(link.origin_id)) {
                         target.disconnectInput(i);
@@ -180,33 +179,61 @@ app.registerExtension({
                 }
             }
         }
-        // 【修复 1】使用 graph.setDirtyCanvas
         if (changed) graph.setDirtyCanvas(true, true);
     },
 
     clearSelectedInternalLinks() {
         const selectedNodes = Object.values(app.canvas.selected_nodes || {});
-        if (selectedNodes.length < 2) return;
+        if (selectedNodes.length === 0) return;
 
-        const graph = app.canvas.graph; // 【修复 1】
-
-        const selectedNodeIds = new Set(selectedNodes.map(n => n.id));
+        const graph = app.canvas.graph;
         let changed = false;
 
-        for (const node of selectedNodes) {
-            if (!node.inputs) continue;
-            for (let i = 0; i < node.inputs.length; i++) {
-                const linkId = node.inputs[i].link;
-                if (linkId !== null) {
-                    const link = graph.links[linkId]; // 【修复 1】
-                    if (link && selectedNodeIds.has(link.origin_id)) {
+        // 【新增逻辑】单选模式：断开该节点的所有连接（输入和输出）
+        if (selectedNodes.length === 1) {
+            const node = selectedNodes[0];
+
+            // 1. 断开所有输入
+            if (node.inputs) {
+                for (let i = 0; i < node.inputs.length; i++) {
+                    if (node.inputs[i].link !== null) {
                         node.disconnectInput(i);
                         changed = true;
                     }
                 }
             }
+
+            // 2. 断开所有输出
+            if (node.outputs) {
+                for (let i = 0; i < node.outputs.length; i++) {
+                    if (node.outputs[i].links && node.outputs[i].links.length > 0) {
+                        node.disconnectOutput(i);
+                        changed = true;
+                    }
+                }
+            }
+        } 
+        // 【原有逻辑】多选模式：仅断开选中节点内部的连接
+        else {
+            const selectedNodeIds = new Set(selectedNodes.map(n => n.id));
+            
+            for (const node of selectedNodes) {
+                if (!node.inputs) continue;
+                for (let i = 0; i < node.inputs.length; i++) {
+                    const linkId = node.inputs[i].link;
+                    if (linkId !== null) {
+                        const link = graph.links[linkId];
+                        // 只有当连线的起点也在选中列表中时，才断开
+                        if (link && selectedNodeIds.has(link.origin_id)) {
+                            node.disconnectInput(i);
+                            changed = true;
+                        }
+                    }
+                }
+            }
         }
-        if (changed) graph.setDirtyCanvas(true, true); // 【修复 1】
+
+        if (changed) graph.setDirtyCanvas(true, true);
     },
 
     sortNodesByVisualColumns(nodes) {
@@ -246,19 +273,17 @@ app.registerExtension({
             offset = 0, 
             cycleTargetSlots = false, 
             cycleSourceSlots = false,
-            sharedUsedOutputs = null // 【修复 2】新增参数：接收外部传入的已用端口记录
+            sharedUsedOutputs = null 
         } = options;
 
         let connectionMade = false;
         
-        // 如果外部没有传，则使用局部的 Set（多对一模式通常如此）
-        // 如果外部传了（一对多模式），则使用共享的 Set
+        // 如果外部没有传，则使用局部的 Set
         const usedSourceOutputs = sharedUsedOutputs || new Set(); 
         
         const inputCount = targetNode.inputs.length;
         const matchStrategy = getSetting("FastLink.MatchStrategy", "name_type");
 
-        // 【修复 1】使用 app.canvas.graph
         const graph = app.canvas.graph;
 
         for (let k = 0; k < inputCount; k++) {
@@ -268,7 +293,7 @@ app.registerExtension({
             if (input.link && !force) continue;
 
             let bestMatch = null;
-            let bestMatchScore = 0;
+            let bestMatchScore = -1; // 【修复】初始分设为 -1，允许 0 分以上的任何匹配
 
             for (const sourceNode of sources) {
                 if (!sourceNode.outputs) continue;
@@ -280,29 +305,23 @@ app.registerExtension({
                     
                     const outputId = `${sourceNode.id}_${j}`;
 
-                    // 【修复 2】改进的占用检查逻辑
-                    // 只有当 cycleSourceSlots=false (非轮询源接口模式) 时才检查占用
-                    if (!cycleSourceSlots) {
-                        // 检查这个端口是否在本次批处理中被用过
-                        if (usedSourceOutputs.has(outputId)) {
-                            // 如果被用过，我们不立即跳过，而是给它一个极低的分数（降级）
-                            // 这样：如果有空闲端口，优先连空闲的；如果全满了，才允许广播（连已用的）。
-                            // 除非是 ManyToOne (多汇聚一)，此时通常不希望同一个源连同一个目标两次，所以可以保持跳过。
-                            // 但为了简化逻辑，我们这里采取：如果外部传入了 sharedSet (一对多模式)，我们进行降级；否则跳过。
-                            if (sharedUsedOutputs) {
-                                // 这是一个已用的端口，稍后评分时会扣分
-                            } else {
-                                continue; // 多对一模式下，同一个源只连一次
-                            }
+                    // 【逻辑优化】
+                    // 1. 如果不是轮询模式，我们需要检查端口占用
+                    // 2. 如果是 ManyToOne (sharedUsedOutputs 为空)，通常不希望重复连同一个源端口，所以 continue
+                    // 3. 如果是 OneToMany (sharedUsedOutputs 存在)，我们希望允许复用(降级)，所以这里不 continue
+                    if (!cycleSourceSlots && usedSourceOutputs.has(outputId)) {
+                        if (!sharedUsedOutputs) {
+                            continue; // 多对一：严格跳过已用端口
                         }
+                        // 一对多：允许进入下方逻辑，进行降权评分
                     }
 
                     if (input.link) {
-                        const link = graph.links[input.link]; // 【修复 1】
+                        const link = graph.links[input.link];
                         if (link && link.origin_id === sourceNode.id && link.origin_slot === j) continue;
                     }
 
-                    // --- 匹配逻辑 ---
+                    // --- 匹配评分逻辑 ---
                     let currentScore = 0;
                     const inputType = input.type;
                     const outputType = output.type;
@@ -312,6 +331,7 @@ app.registerExtension({
 
                     if (!isCompatible) continue;
 
+                    // 1. 基础匹配分 (1 ~ 3 分)
                     if (isInputWildcard || isOutputWildcard) {
                         currentScore = 1;
                     } else if (matchStrategy === "type_only") {
@@ -326,16 +346,14 @@ app.registerExtension({
                         }
                     }
 
-                    // 【修复 2】关键：如果该端口已被使用，大幅扣分，迫使算法优先寻找其他空闲端口
+                    // 2. 占用状态分 (0 或 10 分)
+                    // 【修复】改为加分制，而不是减分制，防止总分为负数
                     if (sharedUsedOutputs && usedSourceOutputs.has(outputId)) {
-                        currentScore -= 10; // 扣大分，变成负分也没关系，只要比其他更差就行
-                        // 但要保证比 0 大吗？不，只要算法能处理。
-                        // 这里简单处理：如果它是唯一匹配，currentScore 即使很低也会被选中（因为 bestMatchScore 初始 0，需要调整）
-                        // 修正：如果 currentScore <= 0，我们就不连了？不，我们希望连。
-                        // 所以不仅要扣分，还要保证 bestMatchScore 的初始值逻辑能接受它。
-                        // 我们把“未占用”的基础分都 +100，占用的保持原分。
+                        // 已被占用：不加奖励分 (保持基础分 1~3，大于初始值 -1，所以能被选中)
+                        // currentScore += 0; 
                     } else {
-                         currentScore += 100; // 未占用的端口，给予巨大优势
+                         // 未被占用：给予高额奖励 (基础分 + 10 = 11~13)
+                         currentScore += 10;
                     }
 
                     if (currentScore > bestMatchScore) {
@@ -368,7 +386,7 @@ app.registerExtension({
             const idx = options.offset % sourceNodes.length;
             sourceNodes = [sourceNodes[idx]];
         }
-        // 【修复 1】使用 app.canvas.graph
+
         if (this.connectSourcesToTarget(sourceNodes, targetNode, options)) {
             app.canvas.graph.setDirtyCanvas(true, true);
         }
@@ -386,19 +404,17 @@ app.registerExtension({
             targetNodes = [targetNodes[idx]];
         }
         
-        // 【修复 2】创建一个在本次“一对多”操作中共享的 Set
-        // 这样 Target A 用了 Output 1 后，Target B 就会知道，从而优先选 Output 2
+        // 共享 Set：用于在多个目标节点之间协调端口占用情况
         const batchUsedSourceOutputs = new Set();
         const sharedOptions = { ...options, sharedUsedOutputs: batchUsedSourceOutputs };
 
         let changed = false;
         for (const targetNode of targetNodes) {
-            // 将共享 Set 传入
             if (this.connectSourcesToTarget([sourceNode], targetNode, sharedOptions)) {
                 changed = true;
             }
         }
-        // 【修复 1】使用 app.canvas.graph
+
         if (changed) app.canvas.graph.setDirtyCanvas(true, true);
     },
 
@@ -416,7 +432,7 @@ app.registerExtension({
                 changed = true;
             } 
         }
-        // 【修复 1】使用 app.canvas.graph
+
         if (changed) app.canvas.graph.setDirtyCanvas(true, true);
     }
 });
