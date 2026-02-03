@@ -189,7 +189,7 @@ app.registerExtension({
         const graph = app.canvas.graph;
         let changed = false;
 
-        // 【新增逻辑】单选模式：断开该节点的所有连接（输入和输出）
+        // 单选模式：断开该节点的所有连接（输入和输出）
         if (selectedNodes.length === 1) {
             const node = selectedNodes[0];
 
@@ -213,7 +213,7 @@ app.registerExtension({
                 }
             }
         } 
-        // 【原有逻辑】多选模式：仅断开选中节点内部的连接
+        // 多选模式：仅断开选中节点内部的连接
         else {
             const selectedNodeIds = new Set(selectedNodes.map(n => n.id));
             
@@ -293,7 +293,7 @@ app.registerExtension({
             if (input.link && !force) continue;
 
             let bestMatch = null;
-            let bestMatchScore = -1; // 【修复】初始分设为 -1，允许 0 分以上的任何匹配
+            let bestMatchScore = -1; // 初始分设为 -1，允许 0 分以上的任何匹配
 
             for (const sourceNode of sources) {
                 if (!sourceNode.outputs) continue;
@@ -305,7 +305,6 @@ app.registerExtension({
                     
                     const outputId = `${sourceNode.id}_${j}`;
 
-                    // 【逻辑优化】
                     // 1. 如果不是轮询模式，我们需要检查端口占用
                     // 2. 如果是 ManyToOne (sharedUsedOutputs 为空)，通常不希望重复连同一个源端口，所以 continue
                     // 3. 如果是 OneToMany (sharedUsedOutputs 存在)，我们希望允许复用(降级)，所以这里不 continue
@@ -327,7 +326,20 @@ app.registerExtension({
                     const outputType = output.type;
                     const isInputWildcard = inputType === "*" || inputType === "REROUTE";
                     const isOutputWildcard = outputType === "*" || outputType === "REROUTE";
-                    const isCompatible = (inputType === outputType) || isInputWildcard || isOutputWildcard;
+                    
+                    // 【修复】增强兼容性判定：如果类型完全相等或包含通配符，或列表类型存在交集
+                    let isCompatible = (inputType === outputType) || isInputWildcard || isOutputWildcard;
+
+                    // 尝试处理 "VIDEO,STRING" 这种多类型情况
+                    if (!isCompatible && typeof inputType === "string" && typeof outputType === "string") {
+                        if (inputType.includes(",") || outputType.includes(",")) {
+                            // 分割并去除空格
+                            const iTypes = inputType.split(",").map(t => t.trim());
+                            const oTypes = outputType.split(",").map(t => t.trim());
+                            // 检查是否有交集
+                            isCompatible = iTypes.some(t => oTypes.includes(t));
+                        }
+                    }
 
                     if (!isCompatible) continue;
 
@@ -347,7 +359,7 @@ app.registerExtension({
                     }
 
                     // 2. 占用状态分 (0 或 10 分)
-                    // 【修复】改为加分制，而不是减分制，防止总分为负数
+                    // 奖励机制：未被占用的端口获得高额奖励
                     if (sharedUsedOutputs && usedSourceOutputs.has(outputId)) {
                         // 已被占用：不加奖励分 (保持基础分 1~3，大于初始值 -1，所以能被选中)
                         // currentScore += 0; 

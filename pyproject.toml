@@ -1,7 +1,7 @@
 [project]
 name = "alignlayout"
 description = "节点对齐、节点拉伸、快捷菜单、收藏菜单、自动布局、选择相同、替换节点、快速连接"
-version = "1.0.8"
+version = "1.0.9"
 license = {file = "LICENSE"} 
 # classifiers = [
 #     # For OS-independent nodes (works on all operating systems)
