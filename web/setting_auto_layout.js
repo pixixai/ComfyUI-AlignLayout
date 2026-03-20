@@ -69,6 +69,20 @@ const autoLayoutSettings = [
         tooltip: "Choose the direction for the auto-layout algorithm."
     },
 
+    // 2.5 布局拓扑引力策略 (新增：配合全新双向拓扑算法)
+    {
+        id: "AutoLayout.Gravity",
+        name: "Alignment Strategy",
+        type: "combo",
+        defaultValue: "Source-Aligned",
+        category: ["AlignLayout", "Auto Layout", "Alignment Strategy"],
+        options: [
+            { text: "Source-Aligned", value: "Source-Aligned" },
+            { text: "Sink-Aligned", value: "Sink-Aligned" }
+        ],
+        tooltip: "Source-Aligned keeps branching nodes together. Sink-Aligned pushes terminal nodes together."
+    },
+
     // 2. 快捷键
     {
         id: "AutoLayout.Shortcut",
@@ -97,7 +111,7 @@ const resetSetting = {
     name: "Restore Default Settings",
     type: "boolean",
     defaultValue: false,
-    category: ["AlignLayout", "Auto Layout", "RestoreDefaultSettings"], 
+    category: ["AlignLayout", "Auto Layout", "RestoreDefaultSettings"],
     tooltip: "⚠️ WARNING: Click to RESET all Auto Layout settings. The switch will auto-off after execution.",
     onChange: async (newVal, oldVal) => {
         // 只有当用户将其打开 (true) 时才触发

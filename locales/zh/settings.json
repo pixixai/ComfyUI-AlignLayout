@@ -128,7 +128,14 @@
         "name": "快捷键",
         "tooltip": "触发自动布局的组合键，格式如：Alt+L"
     },
-
+    "AutoLayout_Gravity": {
+        "name": "布局拓扑引力策略",
+        "tooltip": "选择同一列节点的对齐基准中心",
+        "options": {
+            "Source-Aligned": "起点对齐：保持分支起点在同列",
+            "Sink-Aligned": "终点对齐：强推末端节点至同列"
+        }
+    },
 
     "NodeAligner_ResetAll": {
         "name": "恢复默认设置",

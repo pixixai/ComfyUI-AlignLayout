@@ -8,14 +8,14 @@
 
 - **功能**：快速将选中的多个节点对齐到同一基准线、均匀分布，并支持指定间距堆叠与自动布局。
   
-  ![alt text](images/对齐面板.png)
+  ![alt text](../images/对齐面板.png)
 - **快捷键**：`Alt + A`（可自定义）
 - **亮点**：
     - 双模操作：点击触发或鼠标甩动触发
     - 环形菜单布局：上/下/左/右对齐、水平/垂直居中、垂直/水平平均分布
     - 底部控制栏：支持指定间距堆叠和自动布局
     - 智能交互：面板跟随鼠标、动态指示器、自动退出
-- **详细说明文档：** [📍 节点对齐 (Align Panel)](web/docs/align.md)
+- **详细说明文档：** <!-- INCLUDE:web/docs/align.md -->
 
 ---
 
@@ -23,7 +23,7 @@
 
 - **功能**：统一节点尺寸，支持单侧拉伸、最大尺寸匹配和尺寸重置。
 
-    ![alt text](images/拉伸面板.png)
+    ![alt text](../images/拉伸面板.png)
 
 - **快捷键**：`Alt + S`（可自定义）
 - **亮点**：
@@ -31,7 +31,7 @@
     - 双模操作：点击触发或鼠标甩动触发
     - 互斥模式：与对齐面板自动互斥显示
     - 智能交互：面板跟随鼠标、动态指示器
-- **详细说明文档：** [📏 节点拉伸 (Stretch Panel)](web/docs/stretch.md)
+- **详细说明文档：** <!-- INCLUDE:web/docs/stretch.md -->
 
 ---
 
@@ -39,7 +39,7 @@
 
 - **功能**：一键智能整理节点布局，支持局部或全局整理。
   
-    ![alt text](images/自动布局.gif)
+    ![alt text](../images/自动布局.gif)
   
 - **快捷键**：`Alt + L`（默认，可自定义）
 - **亮点**：
@@ -47,7 +47,7 @@
     - 智能流式布局：自动识别独立节点组，端口感知排序
     - 防碰撞机制，防止节点重叠
     - 支持撤销操作
-- **详细说明文档：** [⚡ 自动布局 (Auto Layout)](web/docs/auto_layout.md)
+- **详细说明文档：** <!-- INCLUDE:web/docs/auto_layout.md -->
 
 ---
 
@@ -55,7 +55,7 @@
 
 - **功能**：提供跟随鼠标的级联菜单，高效查找和添加节点。
   
-  ![alt text](images/添加节点菜单.gif)
+  ![alt text](../images/添加节点菜单.gif)
 
 - **快捷键**：`A`
 - **亮点**：
@@ -63,7 +63,7 @@
     - 拖拽置顶与节点收藏功能
     - 现代化深色磨砂玻璃风格UI
     - 配置本地存储，支持迁移备份
-- **详细说明文档：** [➕ 添加节点菜单 (Add Node Menu)](web/docs/add_node_menu.md)
+- **详细说明文档：** <!-- INCLUDE:web/docs/add_node_menu.md -->
 
 ---
 
@@ -71,7 +71,7 @@
 
 - **功能**：快速访问在添加节点菜单中收藏的节点。
   
-  ![alt text](images/收藏节点菜单.gif)
+  ![alt text](../images/收藏节点菜单.gif)
 
 - **快捷键**：`Q`
 - **亮点**：
@@ -79,7 +79,7 @@
     - 独立置顶逻辑，可自定义排序
     - 紫色系高亮风格，与主菜单区分
     - 互斥显示：与添加节点菜单互斥
-- **详细说明文档：** [🚀 收藏节点菜单 (Quick Node Menu)](web/docs/quick_node_menu.md)
+- **详细说明文档：** <!-- INCLUDE:web/docs/quick_node_menu.md -->
 
 ---
 
@@ -87,7 +87,7 @@
 
 - **功能**：通过智能算法实现极速的多对一、一对多、链式连接等操作。
 
-    ![alt text](images/快速连接.gif)
+    ![alt text](../images/快速连接.gif)
 
 - **快捷键列表**：
     - `F`：多对一（汇聚）
@@ -101,7 +101,7 @@
     - 智能保护连线，非强制模式不断开已有连接
     - 视觉列排序与严格左上排序算法
     - 高度可配置：阈值、超时、匹配优先级等
-- **详细说明文档：** [🔗 快速连接 (Fast Link)](web/docs/fast_link.md)
+- **详细说明文档：** <!-- INCLUDE:web/docs/fast_link.md -->
 
 ---
 
@@ -109,14 +109,14 @@
 
 - **功能**：一键选中画布上所有与当前选中节点类型一致的节点。
 
-    ![alt text](images/选择相同节点.gif)
+    ![alt text](../images/选择相同节点.gif)
 
 - **快捷键**：`Shift + A`（可自定义）
 - **亮点**：
     - 支持多类型同时选择
     - 配合排版工具可快速整理同类节点
     - 简单高效，适用于大型工作流整理
-- **详细说明文档：** [🔍 选择相同节点 (Select Same Nodes)](web/docs/select_same_nodes.md)
+- **详细说明文档：** <!-- INCLUDE:web/docs/select_same_nodes.md -->
 
 ---
 
@@ -124,7 +124,7 @@
 
 - **功能**：以热替换方式将旧节点替换为新节点，自动迁移连线和参数。
 
-    ![alt text](images/替换节点.gif)
+    ![alt text](../images/替换节点.gif)
     
 - **快捷键**：`Shift + R`（可自定义）
 - **亮点**：
@@ -133,25 +133,25 @@
     - 支持批量替换相同类型节点
     - 高亮反馈与可自定义视觉样式
     - 支持撤销操作
-- **详细说明文档：** [🔄 替换节点 (Replace Node)](web/docs/replace_node.md)
+- **详细说明文档：** <!-- INCLUDE:web/docs/replace_node.md -->
 
 ## 详细说明文档导航
 
-[📍 节点对齐 (Align Panel)](web/docs/align.md)
+<!-- INCLUDE:web/docs/align.md -->
 
-[📏 节点拉伸 (Stretch Panel)](web/docs/stretch.md)
+<!-- INCLUDE:web/docs/stretch.md -->
 
-[⚡ 自动布局 (Auto Layout)](web/docs/auto_layout.md)
+<!-- INCLUDE:web/docs/auto_layout.md -->
 
-[➕ 添加节点菜单 (Add Node Menu)](web/docs/add_node_menu.md)
+<!-- INCLUDE:web/docs/add_node_menu.md -->
 
-[🚀 收藏节点菜单 (Quick Node Menu)](web/docs/quick_node_menu.md)
+<!-- INCLUDE:web/docs/quick_node_menu.md -->
 
-[🔗 快速连接 (Fast Link)](web/docs/fast_link.md)
+<!-- INCLUDE:web/docs/fast_link.md -->
 
-[🔄 替换节点 (Replace Node)](web/docs/replace_node.md)
+<!-- INCLUDE:web/docs/replace_node.md -->
 
-[🔍 选择相同节点 (Select Same Nodes)](web/docs/select_same_nodes.md)
+<!-- INCLUDE:web/docs/select_same_nodes.md -->
 
 ## 安装方法
 
@@ -176,33 +176,7 @@
 
 ## 📝 更新日志
 
-[1.0.9] - 2026-02-03
-- "快速连线"，增加了对“端口为多个类型”节点的匹配连接。
-
-[1.0.8] - 2026-02-02
-- 调整“快速连线”评分权重策略，从“惩罚机制”修改为“奖励机制”。
-- 增加“快速连线” Ctrl+Shift+Alt+F 清理单个节点连线时，暴力断开该节点的所有输入和输出连线。
-
-[1.0.7] - 2026-01-31
-- 修复“替换节点”进入替换状态后，打开搜索框输入时，会自动退出的bug
-  
-[1.0.6] - 2026-01-29
-- "替换节点"的默认参数调整：填充为0，描边为1；
-- 在设置中添加"恢复默认参数"的设置项
-- "对齐面板"的水平分布间距、垂直分布间距，输入值增加了内存变量，能够继续使用上一次输入的数值，且在浏览器刷新后和ComfyUI重启后，会恢复默认值（在设置中设定的值）。
-
-[1.0.5] - 2026-01-29
-- <修复：“自动布局”“添加节点菜单”“收藏节点菜单”“快速连接”“替换节点”“选择相同节点”在子图下不能生效的bug>
-- <修复：“自动布局”后节点依旧在当前位置>
-- <“快速连接-一对多”时总是把一个端口输出给每个节点>
-- < README文档格式调整 >
-
-[1.0.4] - 2026-01-28
-- <自定义设置>：可以在设置中设置每个功能
-- <选择相同节点>：Shift+A，选择画布上相同的节点。
-- <自动布局>：Alt+L，根据流开始或结束的节点，排列布局。
-- <快速连线>：F，快速连接选择的节点（根据位置）
-- <替换节点>：Shift+R，替换选中的节点（可替换多个）
+<!-- INCLUDE:web/docs/更新日志.md -->
 
 ## 🏆 参考项目
 
