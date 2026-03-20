@@ -9,6 +9,7 @@
 - **功能**：快速将选中的多个节点对齐到同一基准线、均匀分布，并支持指定间距堆叠与自动布局。
   
   ![alt text](../images/对齐面板.png)
+
 - **快捷键**：`Alt + A`（可自定义）
 - **亮点**：
     - 双模操作：点击触发或鼠标甩动触发
@@ -153,6 +154,8 @@
 
 <!-- INCLUDE:web/docs/select_same_nodes.md -->
 
+<!-- INCLUDE:web/docs/更新日志.md -->
+
 ## 安装方法
 
 ### 方法一：通过 ComfyUI Manager 安装
@@ -167,16 +170,11 @@
 2. 克隆本仓库（确保先安装git）
     ```
     git clone https://github.com/pixixai/ComfyUI-AlignLayout.git
-
     ```
     或下载 ZIP 并解压到 custom_nodes 文件夹
 
 3. 重启 ComfyUI
 
-
-## 📝 更新日志
-
-<!-- INCLUDE:web/docs/更新日志.md -->
 
 ## 🏆 参考项目
 

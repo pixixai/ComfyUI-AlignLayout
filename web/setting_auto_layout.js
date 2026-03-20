@@ -13,9 +13,9 @@ const autoLayoutSettings = [
         id: "AutoLayout.VerticalGap",
         name: "Vertical Spacing",
         type: "number",
-        defaultValue: 60,
+        defaultValue: 10,
         category: ["AlignLayout", "Auto Layout", "Vertical Spacing"],
-        attrs: { min: 20, max: 1000, step: 10, showButtons: true },
+        attrs: { min: 10, max: 1000, step: 10, showButtons: true },
         tooltip: "The vertical space between nodes in the same column."
     },
 
@@ -24,9 +24,9 @@ const autoLayoutSettings = [
         id: "AutoLayout.HorizontalGap",
         name: "Horizontal Spacing",
         type: "number",
-        defaultValue: 80,
+        defaultValue: 30,
         category: ["AlignLayout", "Auto Layout", "Horizontal Spacing"],
-        attrs: { min: 20, max: 1000, step: 10, showButtons: true },
+        attrs: { min: 10, max: 1000, step: 10, showButtons: true },
         tooltip: "The horizontal space between columns."
     },
 
@@ -35,7 +35,7 @@ const autoLayoutSettings = [
         id: "AutoLayout.IslandGap",
         name: "Island Spacing",
         type: "number",
-        defaultValue: 150,
+        defaultValue: 20,
         category: ["AlignLayout", "Auto Layout", "Island Spacing"],
         attrs: { min: 0, max: 2000, step: 10, showButtons: true },
         tooltip: "The spacing between disconnected node groups (islands)."

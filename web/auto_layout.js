@@ -37,7 +37,7 @@ app.registerExtension({
                 this.arrangeNodes();
             }
         });
-        console.log("AutoLayout: Module Loaded with unified topological depth & slot sorting.");
+        console.log("AutoLayout: Module Loaded with Native Hierarchy & Safe Bounding Box.");
     },
 
     /**
@@ -49,63 +49,7 @@ app.registerExtension({
     },
 
     /**
-     * 获取节点组（连通分量）
-     */
-    getConnectedGroups(nodes, graph) {
-        const groups = [];
-        const visited = new Set();
-        const nodeSet = new Set(nodes.map(n => n.id));
-
-        for (const node of nodes) {
-            if (visited.has(node.id)) continue;
-
-            const group = [];
-            const queue = [node];
-            visited.add(node.id);
-
-            while (queue.length > 0) {
-                const curr = queue.shift();
-                group.push(curr);
-
-                if (curr.inputs) {
-                    for (const inp of curr.inputs) {
-                        if (inp.link) {
-                            const link = this.getLink(inp.link, graph);
-                            if (!link) continue;
-                            const srcId = link.origin_id;
-                            if (nodeSet.has(srcId) && !visited.has(srcId)) {
-                                visited.add(srcId);
-                                const srcNode = graph.getNodeById(srcId);
-                                if (srcNode) queue.push(srcNode);
-                            }
-                        }
-                    }
-                }
-
-                if (curr.outputs) {
-                    for (const out of curr.outputs) {
-                        if (out.links) {
-                            for (const linkId of out.links) {
-                                const link = this.getLink(linkId, graph);
-                                if (!link) continue;
-                                const dstId = link.target_id;
-                                if (nodeSet.has(dstId) && !visited.has(dstId)) {
-                                    visited.add(dstId);
-                                    const dstNode = graph.getNodeById(dstId);
-                                    if (dstNode) queue.push(dstNode);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            groups.push(group);
-        }
-        return groups;
-    },
-
-    /**
-     * 主排列函数
+     * 主排列函数 (引入官方原生递归嵌套布局逻辑)
      */
     arrangeNodes() {
         const graph = app.canvas.graph;
@@ -119,6 +63,7 @@ app.registerExtension({
         const islandDir = app.extensionManager.setting.get("AutoLayout.IslandDirection") ?? "Vertical";
         const layoutDir = app.extensionManager.setting.get("AutoLayout.Direction") ?? "Right-to-Left";
         const gravity = app.extensionManager.setting.get("AutoLayout.Gravity") ?? "Source-Aligned";
+        const isReverse = layoutDir.includes("Right-to-Left");
 
         if (selectedNodesMap && Object.keys(selectedNodesMap).length > 0) {
             targetNodes = Object.values(selectedNodesMap);
@@ -128,154 +73,392 @@ app.registerExtension({
 
         if (!targetNodes || targetNodes.length === 0) return;
 
-        const groups = this.getConnectedGroups(targetNodes, graph);
-
-        groups.sort((g1, g2) => {
-            if (islandDir === "Vertical") {
-                const y1 = g1.reduce((acc, n) => acc + n.pos[1], 0) / g1.length;
-                const y2 = g2.reduce((acc, n) => acc + n.pos[1], 0) / g2.length;
-                return y1 - y2;
-            } else {
-                const x1 = g1.reduce((acc, n) => acc + n.pos[0], 0) / g1.length;
-                const x2 = g2.reduce((acc, n) => acc + n.pos[0], 0) / g2.length;
-                return x1 - x2;
+        // =========================================================
+        // 【第一步】调用官方原生状态刷新
+        // 确保所有组内的节点层级关系是最新的
+        // =========================================================
+        const allGroups = graph._groups || [];
+        allGroups.forEach(g => {
+            if (typeof g.recomputeInsideNodes === 'function') {
+                g.recomputeInsideNodes();
             }
         });
 
-        const isReverse = layoutDir.includes("Right-to-Left");
-        let anchorX, anchorY;
-
-        if (targetNodes.length > 0) {
-            const allMinY = Math.min(...targetNodes.map(n => n.pos[1]));
-
-            if (isReverse) {
-                const allMaxRight = Math.max(...targetNodes.map(n => n.pos[0] + n.size[0]));
-                anchorX = allMaxRight;
-            } else {
-                const allMinX = Math.min(...targetNodes.map(n => n.pos[0]));
-                anchorX = allMinX;
-            }
-            anchorY = allMinY;
-        } else {
-            anchorX = isReverse ? 1200 : 100;
-            anchorY = 100;
-        }
-
-        let currentGroupX = anchorX;
-        let currentGroupY = anchorY;
-
-        for (const group of groups) {
-            const groupBounds = this.layoutGroup(
-                group,
-                graph,
-                currentGroupX,
-                currentGroupY,
-                horizontalGap,
-                rowHeightGap,
-                isReverse,
-                gravity
-            );
-
-            if (islandDir === "Vertical") {
-                currentGroupY += groupBounds.height + islandGap;
-            } else {
-                if (isReverse) {
-                    currentGroupX -= (groupBounds.width + islandGap);
-                } else {
-                    currentGroupX += (groupBounds.width + islandGap);
+        // 安全扩充：如果选中了节点组内的某个节点，强制将整个节点组内的节点全部加入
+        let expandedNodes = new Set(targetNodes);
+        let relevantGroups = new Set();
+        let changed = true;
+        
+        while(changed) {
+            changed = false;
+            for (const g of allGroups) {
+                if (relevantGroups.has(g)) continue;
+                
+                // 使用原生的 g.nodes 判断
+                const groupNodes = g.nodes || [];
+                const hasNode = Array.from(groupNodes).some(n => expandedNodes.has(n));
+                if (hasNode) {
+                    relevantGroups.add(g);
+                    groupNodes.forEach(n => {
+                        if (!expandedNodes.has(n)) {
+                            expandedNodes.add(n);
+                            changed = true;
+                        }
+                    });
                 }
             }
         }
+        targetNodes = Array.from(expandedNodes);
+
+        // =========================================================
+        // 【第二步】利用官方属性构建纯正嵌套树
+        // =========================================================
+        const entities = [...targetNodes, ...Array.from(relevantGroups)];
+        const childrenMap = new Map();
+        const parentMap = new Map();
+        entities.forEach(e => childrenMap.set(e, []));
+
+        // 按照面积从大到小排序，确保小（内层）组最后执行覆盖绑定，形成完美嵌套树
+        const sortedGroups = Array.from(relevantGroups).sort((a, b) => (b.size[0]*b.size[1]) - (a.size[0]*a.size[1]));
+
+        sortedGroups.forEach(g => {
+            // 兼容新老版本：优先取 g.children (包含嵌套组)，没有则降级取 g.nodes
+            const childrenItems = g.children ? Array.from(g.children) : (g.nodes || []);
+            childrenItems.forEach(child => {
+                if (entities.includes(child) && child !== g) {
+                    parentMap.set(child, g); 
+                }
+            });
+        });
+
+        entities.forEach(entity => {
+            const parent = parentMap.get(entity);
+            if (parent) {
+                childrenMap.get(parent).push(entity);
+            }
+        });
+
+        // =========================================================
+        // 【第三步】自底向上 (Bottom-Up) 递归布局引擎
+        // =========================================================
+        const _this = this;
+
+        function processEntity(entity) {
+            if (!relevantGroups.has(entity)) {
+                return {
+                    id: "node_" + entity.id,
+                    isGroup: false,
+                    node: entity,
+                    pos: [...entity.pos],
+                    size: [...entity.size],
+                    entity: entity
+                };
+            }
+
+            const children = childrenMap.get(entity);
+            const childBlocks = children.map(processEntity); // 递归调用，优先排布最底层子集
+
+            if (childBlocks.length > 0) {
+                // ✨ 修复 1：向左偏移问题。逆向模式下，子节点的起跑线必须是组的右边缘！
+                const childStartX = isReverse ? (entity.pos[0] + entity.size[0]) : entity.pos[0];
+                
+                // 将内部子集排版，排版后内部节点的坐标已经改变
+                _this.layoutBlocks(childBlocks, graph, childStartX, entity.pos[1], horizontalGap, rowHeightGap, isReverse, gravity, islandDir, islandGap);
+
+                // =========================================================
+                // ✨ 核心修复：防止空间脱节、"几何绑架"及标题重叠
+                // =========================================================
+                let minX = 99999, minY = 99999, maxX = -99999, maxY = -99999;
+                childBlocks.forEach(b => {
+                    // ✨ 修复 3：补全 LiteGraph 坐标系盲区
+                    // 普通节点的主体在 pos[1]，但其标题栏是在 pos[1] 的上方，因此要向上额外延伸 titleHeight。
+                    // 节点组(Group)的坐标已经是包含了标题栏的最外层边框，因此不需要延伸。
+                    const childTitleHeight = b.isGroup ? 0 : (b.entity.titleHeight || 30);
+                    
+                    minX = Math.min(minX, b.pos[0]);
+                    minY = Math.min(minY, b.pos[1] - childTitleHeight);
+                    maxX = Math.max(maxX, b.pos[0] + b.size[0]);
+                    maxY = Math.max(maxY, b.pos[1] + b.size[1]);
+                });
+
+                const titleHeight = entity.titleHeight || 30; // 动态获取原生标题栏高度
+                const paddingSide = 10; 
+                
+                // ✨ 修复 2：破除 Setter 陷阱与标题重叠问题！
+                // 必须重新赋值整个数组 [x, y]，以此触发 LiteGraph 更新底层的 _bounding！
+                // 因为上方的 minY 已经精准包住了子节点的标题栏，所以这里再往上推 titleHeight 和 padding 就绝对安全了
+                entity.pos = [minX - paddingSide, minY - titleHeight - paddingSide];
+                entity.size = [
+                    Math.max(140, maxX - minX + paddingSide * 2),
+                    Math.max(80, maxY - minY + titleHeight + paddingSide * 2)
+                ];
+            }
+
+            return {
+                id: "group_" + Math.random(),
+                isGroup: true,
+                group: entity,
+                pos: [...entity.pos],
+                size: [...entity.size],
+                childBlocks: childBlocks,
+                entity: entity
+            };
+        }
+
+        // 提取所有没有父级的“顶级元素”，启动递归排布
+        const topLevelEntities = entities.filter(e => !parentMap.get(e));
+        const topBlocks = topLevelEntities.map(processEntity);
+
+        if (topBlocks.length > 0) {
+            let anchorX, anchorY;
+            const allMinY = Math.min(...topBlocks.map(b => b.pos[1]));
+            if (isReverse) {
+                const allMaxRight = Math.max(...topBlocks.map(b => b.pos[0] + b.size[0]));
+                anchorX = allMaxRight;
+            } else {
+                const allMinX = Math.min(...topBlocks.map(b => b.pos[0]));
+                anchorX = allMinX;
+            }
+            anchorY = allMinY;
+
+            // 最终：排布最顶层的所有 Blocks
+            this.layoutBlocks(topBlocks, graph, anchorX, anchorY, horizontalGap, rowHeightGap, isReverse, gravity, islandDir, islandGap);
+        }
+
+        // =========================================================
+        // 【最终步】全局锁定
+        // 所有节点移动结束、所有组的尺寸调整完毕后，做一次彻底的全局刷新
+        // 因为此时所有的坐标已经不会相互干涉，重算关系是最安全的
+        // =========================================================
+        allGroups.forEach(g => {
+            if (typeof g.recomputeInsideNodes === 'function') {
+                g.recomputeInsideNodes();
+            }
+        });
 
         graph.change();
         graph.setDirtyCanvas(true, true);
     },
 
     /**
-     * 单组布局实现 (全新升级双向拓扑算法)
+     * 针对任意层级的 Block 集合进行拓扑解析与排列
      */
-    layoutGroup(nodes, graph, anchorX, startY, horizontalGap, rowHeightGap, isReverse, gravity) {
-        const targetIds = new Set(nodes.map(n => n.id));
-        const nodeDepths = {};
-        nodes.forEach(n => nodeDepths[n.id] = 0);
+    layoutBlocks(blocks, graph, startX, startY, horizontalGap, rowHeightGap, isReverse, gravity, islandDir, islandGap) {
+        if (blocks.length === 0) return { width: 0, height: 0 };
 
-        const isSourceGravity = gravity.includes("Source");
+        // 1. 扁平化映射表：让所有底层节点都能找到它所属的当前上下文 Block
+        const blockMap = new Map();
+        function mapNodes(block, topBlock) {
+            if (!block.isGroup) {
+                blockMap.set(block.node.id, topBlock);
+            } else {
+                block.childBlocks.forEach(cb => mapNodes(cb, topBlock));
+            }
+        }
+        blocks.forEach(b => mapNodes(b, b));
 
-        // ======= 第一步：生成统一方向的逻辑深度矩阵 (0永远是逻辑源头) =======
-        if (isSourceGravity) {
-            // ASAP 策略：起点对齐
-            // 1. 正向推导：主心骨排列
-            for (let i = 0; i < nodes.length + 1; i++) {
-                let changed = false;
-                nodes.forEach(node => {
-                    node.inputs?.forEach(inp => {
-                        if (inp.link) {
-                            const l = this.getLink(inp.link, graph);
-                            if (l && targetIds.has(l.origin_id) && nodeDepths[node.id] <= nodeDepths[l.origin_id]) {
-                                nodeDepths[node.id] = nodeDepths[l.origin_id] + 1;
-                                changed = true;
+        // 2. 动态收集 Block 之间的外部连线
+        blocks.forEach(b => {
+            b.inputs = [];
+            b.outputs = [];
+            const nodes = [];
+            function collectNodes(blk) {
+                if (!blk.isGroup) nodes.push(blk.node);
+                else blk.childBlocks.forEach(collectNodes);
+            }
+            collectNodes(b);
+
+            nodes.forEach(n => {
+                n.inputs?.forEach(inp => {
+                    const l = this.getLink(inp.link, graph);
+                    if (l) {
+                        const originBlock = blockMap.get(l.origin_id);
+                        if (originBlock && originBlock !== b) {
+                            b.inputs.push({ link: inp.link, originBlock, origin_slot: l.origin_slot });
+                        }
+                    }
+                });
+                n.outputs?.forEach(out => {
+                    out.links?.forEach(lId => {
+                        const l = this.getLink(lId, graph);
+                        if (l) {
+                            const targetBlock = blockMap.get(l.target_id);
+                            if (targetBlock && targetBlock !== b) {
+                                b.outputs.push({ link: lId, targetBlock, target_slot: l.target_slot });
                             }
+                        }
+                    });
+                });
+            });
+        });
+
+        // 3. 将当前层级的 Blocks 划分为互不相连的孤岛
+        const islands = [];
+        const visited = new Set();
+        for (const block of blocks) {
+            if (visited.has(block.id)) continue;
+            const group = [];
+            const queue = [block];
+            visited.add(block.id);
+
+            while (queue.length > 0) {
+                const curr = queue.shift();
+                group.push(curr);
+
+                curr.inputs.forEach(inp => {
+                    const src = inp.originBlock;
+                    if (src && !visited.has(src.id)) {
+                        visited.add(src.id);
+                        queue.push(src);
+                    }
+                });
+                curr.outputs.forEach(out => {
+                    const dst = out.targetBlock;
+                    if (dst && !visited.has(dst.id)) {
+                        visited.add(dst.id);
+                        queue.push(dst);
+                    }
+                });
+            }
+            islands.push(group);
+        }
+
+        // 4. 排序并渲染孤岛
+        islands.sort((g1, g2) => {
+            if (islandDir === "Vertical") {
+                const y1 = g1.reduce((acc, b) => acc + b.pos[1], 0) / g1.length;
+                const y2 = g2.reduce((acc, b) => acc + b.pos[1], 0) / g2.length;
+                return y1 - y2;
+            } else {
+                const x1 = g1.reduce((acc, b) => acc + b.pos[0], 0) / g1.length;
+                const x2 = g2.reduce((acc, b) => acc + b.pos[0], 0) / g2.length;
+                return x1 - x2;
+            }
+        });
+
+        let currentGroupX = startX;
+        let currentGroupY = startY;
+        let maxW = 0, maxH = 0;
+
+        for (const island of islands) {
+            const bounds = this.layoutIsland(island, graph, currentGroupX, currentGroupY, horizontalGap, rowHeightGap, isReverse, gravity);
+
+            // 递归应用坐标平移 (Shift)
+            function shiftBlock(block, dx, dy) {
+                // ✨ 同样必须通过生成新数组来触发 LiteGraph 的 Setter，保持内部状态同步！
+                block.pos = [block.pos[0] + dx, block.pos[1] + dy];
+                if (block.isGroup) {
+                    block.group.pos = [block.pos[0], block.pos[1]];
+                    block.childBlocks.forEach(cb => shiftBlock(cb, dx, dy));
+                } else {
+                    block.node.pos = [block.pos[0], block.pos[1]];
+                }
+            }
+
+            island.forEach(b => {
+                const dx = b._newPos[0] - b.pos[0];
+                const dy = b._newPos[1] - b.pos[1];
+                shiftBlock(b, dx, dy);
+            });
+
+            if (islandDir === "Vertical") {
+                currentGroupY += bounds.height + islandGap;
+                maxH = currentGroupY - startY;
+                maxW = Math.max(maxW, bounds.width);
+            } else {
+                if (isReverse) {
+                    currentGroupX -= (bounds.width + islandGap);
+                    maxW = startX - currentGroupX;
+                } else {
+                    currentGroupX += (bounds.width + islandGap);
+                    maxW = currentGroupX - startX;
+                }
+                maxH = Math.max(maxH, bounds.height);
+            }
+        }
+
+        return { width: maxW, height: maxH };
+    },
+
+    /**
+     * 单个孤岛内的完美对齐核心引擎 (修复 Sink-Aligned 问题)
+     */
+    layoutIsland(items, graph, anchorX, startY, horizontalGap, rowHeightGap, isReverse, gravity) {
+        const nodeDepths = {};
+        items.forEach(i => nodeDepths[i.id] = 0);
+
+        // 强健判断：明确识别 Sink-Aligned（无论是否被翻译）
+        const isSinkGravity = gravity === "Sink-Aligned" || gravity.includes("Sink") || gravity.includes("终点");
+        const isSourceGravity = !isSinkGravity;
+
+        // ======= 深度引力推导 =======
+        if (isSourceGravity) {
+            // ASAP：向右正向推导
+            for (let i = 0; i < items.length + 1; i++) {
+                let changed = false;
+                items.forEach(item => {
+                    item.inputs.forEach(inp => {
+                        const srcItem = inp.originBlock;
+                        if (srcItem && nodeDepths[item.id] <= nodeDepths[srcItem.id]) {
+                            nodeDepths[item.id] = nodeDepths[srcItem.id] + 1;
+                            changed = true;
                         }
                     });
                 });
                 if (!changed) break;
             }
-
-            // 2. 反向拉拽：消除悬空节点 (修复 B2, E2 挤在起点的问题)
-            for (let i = 0; i < nodes.length + 1; i++) {
+            // 修复悬空节点挤在一堆
+            for (let i = 0; i < items.length + 1; i++) {
                 let changed = false;
-                nodes.forEach(node => {
+                items.forEach(item => {
                     let minChildDepth = 99999;
                     let hasChild = false;
-                    node.outputs?.forEach(out => out.links?.forEach(lId => {
-                        const l = this.getLink(lId, graph);
-                        if (l && targetIds.has(l.target_id)) {
+                    item.outputs.forEach(out => {
+                        const dstItem = out.targetBlock;
+                        if (dstItem) {
                             hasChild = true;
-                            minChildDepth = Math.min(minChildDepth, nodeDepths[l.target_id]);
+                            minChildDepth = Math.min(minChildDepth, nodeDepths[dstItem.id]);
                         }
-                    }));
-                    // 如果节点的深度距离其直接子节点跨度大于1，强行把它拉倒子节点的前一列
-                    if (hasChild && nodeDepths[node.id] < minChildDepth - 1) {
-                        nodeDepths[node.id] = minChildDepth - 1;
+                    });
+                    if (hasChild && nodeDepths[item.id] < minChildDepth - 1) {
+                        nodeDepths[item.id] = minChildDepth - 1;
                         changed = true;
                     }
                 });
                 if (!changed) break;
             }
         } else {
-            // ALAP 策略：终点对齐
-            // 1. 逆向反推：确保所有的末端输出节点都在统一列
-            for (let i = 0; i < nodes.length + 1; i++) {
+            // ALAP：向左逆向反推 (Sink-Aligned)
+            for (let i = 0; i < items.length + 1; i++) {
                 let changed = false;
-                nodes.forEach(node => {
-                    node.outputs?.forEach(out => out.links?.forEach(lId => {
-                        const l = this.getLink(lId, graph);
-                        if (l && targetIds.has(l.target_id) && nodeDepths[node.id] <= nodeDepths[l.target_id]) {
-                            nodeDepths[node.id] = nodeDepths[l.target_id] + 1;
+                items.forEach(item => {
+                    item.outputs.forEach(out => {
+                        const dstItem = out.targetBlock;
+                        if (dstItem && nodeDepths[item.id] <= nodeDepths[dstItem.id]) {
+                            nodeDepths[item.id] = nodeDepths[dstItem.id] + 1;
                             changed = true;
                         }
-                    }));
+                    });
                 });
                 if (!changed) break;
             }
-
-            // 2. 深度反转：此时终点是 0，我们反转它，让 0 依然代表画面的逻辑起点
+            // Sink-Aligned 必需的矩阵翻转：保证终点对齐
             let maxDepth = 0;
             for (const id in nodeDepths) maxDepth = Math.max(maxDepth, nodeDepths[id]);
             for (const id in nodeDepths) nodeDepths[id] = maxDepth - nodeDepths[id];
         }
 
-        // ======= 第二步：分列计算 =======
+        // ======= 分列计算 =======
         const columns = {};
         const colMaxWidths = {};
-        nodes.forEach(node => {
-            const d = nodeDepths[node.id];
+        items.forEach(item => {
+            const d = nodeDepths[item.id];
             if (!columns[d]) columns[d] = [];
-            columns[d].push(node);
-            colMaxWidths[d] = Math.max(colMaxWidths[d] || 0, node.size[0]);
+            columns[d].push(item);
+            colMaxWidths[d] = Math.max(colMaxWidths[d] || 0, item.size[0]);
         });
 
-        // 根据用户的物理习惯，决定从左往右渲染还是从右往左渲染列
+        // 决定物理绘制顺序
         const sortedDepths = Object.keys(columns).sort((a, b) => {
             return isReverse ? (parseInt(b) - parseInt(a)) : (parseInt(a) - parseInt(b));
         });
@@ -284,96 +467,104 @@ app.registerExtension({
         let maxGroupY = startY;
         let totalGroupWidth = 0;
 
-        // ======= 第三步：逐列对齐与排序渲染 =======
+        // ======= 逐列对齐与排序 =======
         sortedDepths.forEach(depthStr => {
             const depth = parseInt(depthStr);
-            const colNodes = columns[depth];
+            const colItems = columns[depth];
             const colWidth = colMaxWidths[depth];
             totalGroupWidth += (colWidth + horizontalGap);
 
             const colLeftX = isReverse ? (currentXBase - colWidth) : currentXBase;
 
-            // ✨ 核心改进：引入物理 Y 坐标与端口 Index 双重排序策略
-            colNodes.sort((a, b) => {
-                const getSortKey = (node) => {
+            colItems.sort((a, b) => {
+                const getSortKey = (item) => {
                     let sumSlot = 0;
                     let count = 0;
                     let minParentY = 99999;
 
                     if (isReverse) {
-                        // 倒排模式下，先放置的是深一层的节点（子节点），所以看 Outputs
-                        node.outputs?.forEach(out => out.links?.forEach(lId => {
-                            const l = this.getLink(lId, graph);
-                            if (l && targetIds.has(l.target_id) && nodeDepths[l.target_id] > depth) {
-                                const childNode = graph.getNodeById(l.target_id);
-                                minParentY = Math.min(minParentY, childNode.pos[1]);
-                                sumSlot += l.target_slot; // 取子节点的输入端口序号
+                        item.outputs.forEach(out => {
+                            const childItem = out.targetBlock;
+                            if (childItem && nodeDepths[childItem.id] > depth) {
+                                const cy = childItem._newPos ? childItem._newPos[1] : childItem.pos[1];
+                                minParentY = Math.min(minParentY, cy);
+                                sumSlot += out.target_slot || 0;
                                 count++;
                             }
-                        }));
+                        });
                     } else {
-                        // 顺排模式下，先放置的是浅一层的节点（父节点），所以看 Inputs
-                        node.inputs?.forEach(inp => {
-                            if (inp.link) {
-                                const l = this.getLink(inp.link, graph);
-                                if (l && targetIds.has(l.origin_id) && nodeDepths[l.origin_id] < depth) {
-                                    const parentNode = graph.getNodeById(l.origin_id);
-                                    minParentY = Math.min(minParentY, parentNode.pos[1]);
-                                    sumSlot += l.origin_slot; // 取父节点的输出端口序号
-                                    count++;
-                                }
+                        item.inputs.forEach(inp => {
+                            const parentItem = inp.originBlock;
+                            if (parentItem && nodeDepths[parentItem.id] < depth) {
+                                const py = parentItem._newPos ? parentItem._newPos[1] : parentItem.pos[1];
+                                minParentY = Math.min(minParentY, py);
+                                sumSlot += inp.origin_slot || 0;
+                                count++;
                             }
                         });
                     }
 
-                    if (count === 0) return { y: node.pos[1], slot: 0 };
+                    if (count === 0) return { y: item._newPos ? item._newPos[1] : item.pos[1], slot: 0 };
                     return { y: minParentY, slot: sumSlot / count };
                 };
-
+                
                 const keyA = getSortKey(a);
                 const keyB = getSortKey(b);
 
-                // 第一权重：父节点/子节点的物理高度，高度相差超过 10 像素时绝对服从
-                if (Math.abs(keyA.y - keyB.y) > 10) {
-                    return keyA.y - keyB.y;
-                }
-                // 第二权重：父节点/子节点身上的接口索引（按照插槽从上到下严格排列）
+                if (Math.abs(keyA.y - keyB.y) > 10) return keyA.y - keyB.y;
                 return keyA.slot - keyB.slot;
             });
 
-            // 最终物理放置
+            // ✨ 修改开始：这里使用安全的“天际线”游标
             let currentCursorY = startY;
-            colNodes.forEach(node => {
+            colItems.forEach(item => {
                 let targetY = -1;
-
                 const findTarget = () => {
                     let rel = [];
                     if (isReverse) {
-                        node.outputs?.forEach(o => o.links?.forEach(lid => {
-                            const l = this.getLink(lid, graph);
-                            if (l && nodeDepths[l.target_id] > depth) rel.push(l.target_id);
-                        }));
+                        item.outputs.forEach(out => {
+                            const childItem = out.targetBlock;
+                            if (childItem && nodeDepths[childItem.id] > depth) rel.push(childItem);
+                        });
                     } else {
-                        node.inputs?.forEach(i => {
-                            if (i.link) {
-                                const l = this.getLink(i.link, graph);
-                                if (l && nodeDepths[l.origin_id] < depth) rel.push(l.origin_id);
-                            }
+                        item.inputs.forEach(inp => {
+                            const parentItem = inp.originBlock;
+                            if (parentItem && nodeDepths[parentItem.id] < depth) rel.push(parentItem);
                         });
                     }
-                    return rel.length === 1 ? graph.getNodeById(rel[0]) : null;
+                    return rel.length === 1 ? rel[0] : null;
                 };
 
-                const tNode = findTarget();
-                if (tNode) targetY = tNode.pos[1];
+                const tItem = findTarget();
+                if (tItem) {
+                    targetY = tItem._newPos ? tItem._newPos[1] : tItem.pos[1];
+                }
 
-                const finalY = (targetY !== -1 && targetY >= currentCursorY) ? targetY : currentCursorY;
-                node.pos[1] = finalY;
-                node.pos[0] = isReverse ? (currentXBase - node.size[0]) : colLeftX;
+                // ✨ 获取当前节点的标题栏高度（节点组的视觉顶部与主体对齐，高度为0）
+                const itemTitleHeight = item.isGroup ? 0 : (item.entity.titleHeight || 30);
+                
+                // ✨ 为了保证标题栏不吃掉上一层的间距，当前节点主体的最小安全下放距离必须加上 titleHeight
+                const minYForBody = currentCursorY + itemTitleHeight;
 
-                currentCursorY = finalY + node.size[1] + rowHeightGap;
-                if (currentCursorY > maxGroupY) maxGroupY = currentCursorY;
+                // 判断是否跟目标对齐，且目标位置没有越过安全边界
+                const finalY = (targetY !== -1 && targetY >= minYForBody) ? targetY : minYForBody;
+                
+                // 将新坐标缓存在 Block 上，等待递归函数负责真正的写入和平移
+                item._newPos = [
+                    isReverse ? (currentXBase - item.size[0]) : colLeftX,
+                    finalY
+                ];
+
+                // 获取当前节点的物理底端坐标
+                const itemBottom = finalY + item.size[1];
+
+                // ✨ 计算下一个安全“天际线”游标：当前节点底部 + 要求的垂直间距
+                currentCursorY = itemBottom + rowHeightGap;
+                
+                // ✨ 修复孤岛垂直间距累加问题：孤岛的最大高度只需要算到节点底部，不应包含末尾的垂直间距
+                if (itemBottom > maxGroupY) maxGroupY = itemBottom;
             });
+            // ✨ 修改结束
 
             currentXBase = isReverse ? (colLeftX - horizontalGap) : (colLeftX + colWidth + horizontalGap);
         });
