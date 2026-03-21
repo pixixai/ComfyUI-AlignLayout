@@ -65,13 +65,16 @@ app.registerExtension({
         const gravity = app.extensionManager.setting.get("AutoLayout.Gravity") ?? "Source-Aligned";
         const isReverse = layoutDir.includes("Right-to-Left");
 
-        if (selectedNodesMap && Object.keys(selectedNodesMap).length > 0) {
-            targetNodes = Object.values(selectedNodesMap);
+        // 判断是否是“全局模式”：没有选中任何节点，且没有明确选中任何原生节点组
+        const isWholeGraph = (!selectedNodesMap || Object.keys(selectedNodesMap).length === 0) && !app.canvas.selected_group;
+
+        if (!isWholeGraph) {
+            targetNodes = Object.values(selectedNodesMap || {});
         } else {
             targetNodes = graph._nodes;
         }
 
-        if (!targetNodes || targetNodes.length === 0) return;
+        if ((!targetNodes || targetNodes.length === 0) && !app.canvas.selected_group) return;
 
         // =========================================================
         // 【第一步】调用官方原生状态刷新
@@ -84,28 +87,46 @@ app.registerExtension({
             }
         });
 
-        // 安全扩充：如果选中了节点组内的某个节点，强制将整个节点组内的节点全部加入
+        // =========================================================
+        // 核心变更：精准感知节点组的选择状态
+        // =========================================================
         let expandedNodes = new Set(targetNodes);
         let relevantGroups = new Set();
-        let changed = true;
         
+        if (isWholeGraph) {
+            // 全局模式：纳入所有组
+            allGroups.forEach(g => relevantGroups.add(g));
+        } else {
+            // 局部模式：检测用户是否明确选中了原生节点组 (LiteGraph 的 selected_group)
+            if (app.canvas.selected_group) {
+                relevantGroups.add(app.canvas.selected_group);
+            }
+            
+            // ✨ 新增智能感知框选：如果用户框选了某个组内的【所有节点】，智能推断用户意图为选中该组
+            allGroups.forEach(g => {
+                const groupNodes = g.nodes || [];
+                if (groupNodes.length > 0) {
+                    // 检查组内的每一个节点是否都在 expandedNodes (被选中的节点集合) 中
+                    const allSelected = Array.from(groupNodes).every(n => expandedNodes.has(n));
+                    if (allSelected) {
+                        relevantGroups.add(g);
+                    }
+                }
+            });
+        }
+
+        let changed = true;
         while(changed) {
             changed = false;
-            for (const g of allGroups) {
-                if (relevantGroups.has(g)) continue;
-                
-                // 使用原生的 g.nodes 判断
+            for (const g of relevantGroups) {
+                // 只扩充被标记为“相关”的组，不再无脑绑架未选中的组内的节点
                 const groupNodes = g.nodes || [];
-                const hasNode = Array.from(groupNodes).some(n => expandedNodes.has(n));
-                if (hasNode) {
-                    relevantGroups.add(g);
-                    groupNodes.forEach(n => {
-                        if (!expandedNodes.has(n)) {
-                            expandedNodes.add(n);
-                            changed = true;
-                        }
-                    });
-                }
+                groupNodes.forEach(n => {
+                    if (!expandedNodes.has(n)) {
+                        expandedNodes.add(n);
+                        changed = true;
+                    }
+                });
             }
         }
         targetNodes = Array.from(expandedNodes);
