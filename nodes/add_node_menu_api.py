@@ -42,9 +42,15 @@ def save_json(file_path, data):
 
 routes = PromptServer.instance.routes
 
+# 校验请求是否来自本机，防止未经身份验证的远程访问 (CWE-287)
+def is_local_request(request):
+    return request.remote in ("127.0.0.1", "::1")
+
 # 1. 聚合读取接口 (GET)
 @routes.get("/align-layout/data")
 async def get_menu_data(request):
+    if not is_local_request(request):
+        return web.json_response({"status": "error", "message": "Unauthorized"}, status=403)
     core_file = Path(nodes.__file__).resolve()
     official_dirs = [core_file.parent / "comfy_extras", core_file.parent / "comfy_api_nodes"]
     official_modules = {}
@@ -70,6 +76,8 @@ async def get_menu_data(request):
 # 2. 独立更新接口：置顶 (POST)
 @routes.post("/align-layout/pins")
 async def update_pins(request):
+    if not is_local_request(request):
+        return web.json_response({"status": "error", "message": "Unauthorized"}, status=403)
     try:
         data = await request.json()
         if save_json(PINS_FILE, data):
@@ -81,6 +89,8 @@ async def update_pins(request):
 # 3. 独立更新接口：收藏/快捷 (POST) - 改名为 quick
 @routes.post("/align-layout/quick")
 async def update_quick(request):
+    if not is_local_request(request):
+        return web.json_response({"status": "error", "message": "Unauthorized"}, status=403)
     try:
         data = await request.json()
         if save_json(QUICK_FILE, data):
@@ -92,6 +102,8 @@ async def update_quick(request):
 # 4. 独立更新接口：最后分类 (POST)
 @routes.post("/align-layout/last_category")
 async def update_last_category(request):
+    if not is_local_request(request):
+        return web.json_response({"status": "error", "message": "Unauthorized"}, status=403)
     try:
         data = await request.json()
         if save_json(LAST_CAT_FILE, data):
