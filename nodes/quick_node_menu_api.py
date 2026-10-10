@@ -43,9 +43,15 @@ def save_json(file_path, data):
 
 routes = PromptServer.instance.routes
 
+# 校验请求是否来自本机，防止未经身份验证的远程访问 (CWE-287)
+def is_local_request(request):
+    return request.remote in ("127.0.0.1", "::1")
+
 # 1. 聚合读取接口 (GET) - 专为 Quick Menu 服务
 @routes.get("/quick-menu/data")
 async def get_quick_menu_data(request):
+    if not is_local_request(request):
+        return web.json_response({"status": "error", "message": "Unauthorized"}, status=403)
     data = {
         "quick_list": load_json(SHARED_QUICK_FILE, []),        # 读取共享的收藏列表
         "pins": load_json(QUICK_MENU_PINS_FILE, {}),           # Quick Menu 自己的置顶
@@ -56,6 +62,8 @@ async def get_quick_menu_data(request):
 # 2. 更新共享的 Quick 列表 (移除操作用)
 @routes.post("/quick-menu/update_list")
 async def update_shared_list(request):
+    if not is_local_request(request):
+        return web.json_response({"status": "error", "message": "Unauthorized"}, status=403)
     try:
         data = await request.json()
         # 这是一个共享文件，写入操作会影响 Add Node Menu
@@ -68,6 +76,8 @@ async def update_shared_list(request):
 # 3. 更新 Quick Menu 自己的置顶
 @routes.post("/quick-menu/pins")
 async def update_quick_pins(request):
+    if not is_local_request(request):
+        return web.json_response({"status": "error", "message": "Unauthorized"}, status=403)
     try:
         data = await request.json()
         if save_json(QUICK_MENU_PINS_FILE, data):
@@ -79,6 +89,8 @@ async def update_quick_pins(request):
 # 4. 更新 Quick Menu 自己的最后操作分类
 @routes.post("/quick-menu/last_category")
 async def update_quick_last_category(request):
+    if not is_local_request(request):
+        return web.json_response({"status": "error", "message": "Unauthorized"}, status=403)
     try:
         data = await request.json()
         if save_json(QUICK_MENU_LAST_CAT_FILE, data):
